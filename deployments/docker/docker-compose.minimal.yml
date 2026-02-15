@@ -1,0 +1,33 @@
+# OpenSift Minimal Deployment
+# For quick evaluation with just Redis (no search backend required).
+# Usage: docker-compose -f deployments/docker/docker-compose.minimal.yml up
+
+services:
+  opensift:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - OPENSIFT_AI__API_KEY=${OPENSIFT_AI__API_KEY:-}
+      - OPENSIFT_CACHE__REDIS_URL=redis://redis:6379
+      - OPENSIFT_OBSERVABILITY__LOG_LEVEL=info
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  redis_data:

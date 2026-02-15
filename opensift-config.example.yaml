@@ -1,0 +1,95 @@
+# OpenSift Configuration Example
+# Copy this file to opensift-config.yaml and adjust values for your environment.
+# Environment variables with OPENSIFT_ prefix override these values.
+# Nested keys use double underscores: OPENSIFT_SERVER__PORT=9090
+
+version: "1.0"
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  workers: 4
+  request_timeout: 30
+  cors_origins:
+    - "*"
+
+ai:
+  # Default: WisModel — specifically trained for query planning & verification
+  provider: "wismodel"
+  api_key: "wsk_3af5178deee54f629ef480a82beab431"
+  base_url: "http://wis-apihub-v2.dev.atominnolab.com/api/v1/resource/WisModel/v1"
+  model_planner: "WisModel-20251110"     # query planning & criteria generation
+  model_verifier: "WisModel-20251110"    # result verification against criteria
+  # To use OpenAI or other OpenAI-compatible providers instead:
+  # provider: "openai"
+  # api_key: "sk-your-openai-key"
+  # base_url: "https://api.openai.com/v1"
+  # model_planner: "gpt-4o-mini"
+  # model_verifier: "gpt-4o-mini"
+  # For local models via Ollama:
+  # provider: "local"
+  # api_key: "ollama"                       # Ollama ignores API key but field is required
+  # base_url: "http://localhost:11434/v1"
+  # model_planner: "qwen2.5:14b"
+  # model_verifier: "qwen2.5:14b"
+  # For local models via vLLM:
+  # provider: "local"
+  # api_key: "token-abc123"
+  # base_url: "http://localhost:8000/v1"
+  # model_planner: "Qwen/Qwen2.5-14B-Instruct"
+  # model_verifier: "Qwen/Qwen2.5-14B-Instruct"
+  fallback_to_local: true
+  max_tokens: 4096
+  temperature: 0.1
+
+search:
+  # Use "atomwalker" for academic paper search, "elasticsearch" for generic search
+  default_adapter: "atomwalker"
+  adapters:
+    atomwalker:
+      enabled: true
+      hosts:
+        - "http://wis-apihub-v2.dev.atominnolab.com"
+      index_pattern: "atomwalker-works"
+      api_key: "wsk_3af5178deee54f629ef480a82beab431"
+      extra:
+        search_strategy: "fast"   # fast | comprehensive
+        timeout: 30.0
+    elasticsearch:
+      enabled: false
+      hosts:
+        - "http://localhost:9200"
+      index_pattern: "docs-*"
+      # username: ""
+      # password: ""
+    opensearch:
+      enabled: false
+      hosts:
+        - "https://localhost:9200"
+      index_pattern: "docs-*"
+      # username: "admin"
+      # password: "admin"
+    solr:
+      enabled: false
+      hosts:
+        - "http://localhost:8983/solr"
+      index_pattern: "documents"      # Solr collection name
+      # username: ""
+      # password: ""
+    meilisearch:
+      enabled: false
+      hosts:
+        - "http://localhost:7700"
+      index_pattern: "documents"      # MeiliSearch index UID
+      api_key: ""                     # MeiliSearch master/API key
+  max_concurrent_queries: 10
+
+cache:
+  backend: "redis"  # redis, memory
+  redis_url: "redis://localhost:6379"
+  ttl_query_plans: 3600      # 1 hour
+  ttl_search_results: 300    # 5 minutes
+
+observability:
+  log_level: "info"          # debug, info, warning, error
+  log_format: "json"         # json, console

@@ -1,0 +1,133 @@
+[project]
+name = "opensift"
+version = "0.1.0"
+description = "Open-source AI augmentation layer for search engines — adds intelligent query planning and result verification to any search backend"
+authors = [
+    { name = "OpenSift Team", email = "team@opensift.io" },
+]
+license = { text = "Apache-2.0" }
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+keywords = ["search", "ai", "augmentation", "verification", "llm", "query-planning"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+]
+dependencies = [
+    # Web framework
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    # Data validation & settings
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    # Async HTTP client (adapters, LLM fallback)
+    "httpx>=0.28.0",
+    # Caching
+    "redis>=5.2.0",
+    # Configuration
+    "pyyaml>=6.0.0",
+    # Structured logging
+    "structlog>=24.4.0",
+    # LLM providers (OpenAI-compatible)
+    "openai>=1.60.0",
+]
+
+[project.optional-dependencies]
+elasticsearch = ["elasticsearch>=8.17.0"]
+opensearch = ["opensearch-py>=2.7.0"]
+all = ["elasticsearch>=8.17.0", "opensearch-py>=2.7.0"]
+
+[project.urls]
+Homepage = "https://github.com/opensift/opensift"
+Documentation = "https://github.com/opensift/opensift#readme"
+Repository = "https://github.com/opensift/opensift"
+Issues = "https://github.com/opensift/opensift/issues"
+
+[project.scripts]
+opensift = "opensift.cli:main"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+packages = [{ include = "opensift", from = "src" }]
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.3.0"
+pytest-asyncio = ">=0.25.0"
+pytest-cov = ">=6.0.0"
+ruff = ">=0.9.0"
+mypy = ">=1.14.0"
+pre-commit = ">=4.0.0"
+httpx = ">=0.28.0"  # for TestClient
+
+[tool.poetry.group.docs.dependencies]
+mkdocs = ">=1.6.0"
+mkdocs-material = ">=9.5.0"
+mkdocstrings = { version = ">=0.27.0", extras = ["python"] }
+
+# ─── Tool Configuration ─────────────────────────────────────────
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "RUF", # ruff-specific rules
+]
+ignore = [
+    "E501",    # line length handled by formatter
+    "B008",    # Depends() in function defaults — standard FastAPI pattern
+    "RUF001",  # ambiguous unicode — intentional for CJK content
+    "RUF012",  # mutable class attributes — acceptable for constants
+    "UP042",   # StrEnum — keep str+Enum for Python 3.10 compat docs
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["opensift"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["redis.*", "elasticsearch.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short"
+markers = [
+    "unit: Unit tests (fast, no external deps)",
+    "integration: Integration tests (require external services)",
+    "slow: Slow tests",
+]
+
+[tool.coverage.run]
+source = ["opensift"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80

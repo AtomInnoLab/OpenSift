@@ -1,0 +1,1 @@
+"""Observability — Structured logging."""

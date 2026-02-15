@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenSift Debug Panel</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   Design System — CSS Custom Properties
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --bg: #0f1117;
+  --bg-card: #1a1d27;
+  --bg-card-hover: #1e2230;
+  --bg-input: #141620;
+  --border: #2a2d3a;
+  --border-focus: #6366f1;
+  --text: #e2e8f0;
+  --text-muted: #8b92a5;
+  --text-dim: #5a6175;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --green: #22c55e;
+  --green-bg: rgba(34,197,94,0.1);
+  --yellow: #eab308;
+  --yellow-bg: rgba(234,179,8,0.1);
+  --red: #ef4444;
+  --red-bg: rgba(239,68,68,0.1);
+  --blue: #3b82f6;
+  --blue-bg: rgba(59,130,246,0.1);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.3);
+  --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+}
+
+/* ═══════ Reset & Base ═══════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ═══════ Layout ═══════ */
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+header h1 span { color: var(--accent); }
+
+.health-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  transition: border-color 0.2s;
+}
+.health-badge:hover { border-color: var(--accent); }
+.health-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: background 0.3s;
+}
+.health-dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.health-dot.err { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+/* ═══════ Tabs ═══════ */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 0.25rem;
+}
+.tab-btn {
+  flex: 1;
+  padding: 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ═══════ Search Box ═══════ */
+.search-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+.search-box label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.search-row {
+  display: flex;
+  gap: 0.75rem;
+}
+.search-row input, .search-row textarea {
+  flex: 1;
+  padding: 0.7rem 1rem;
+  font-size: 0.95rem;
+  font-family: var(--sans);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  transition: border-color 0.2s;
+  resize: vertical;
+}
+.search-row input:focus, .search-row textarea:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+.options-row {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.option-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.option-group select, .option-group input[type="number"] {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.82rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+}
+.option-group input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+.btn {
+  padding: 0.7rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--accent-hover); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-sm {
+  padding: 0.45rem 1rem;
+  font-size: 0.82rem;
+}
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.btn-outline:hover { border-color: var(--accent); color: var(--text); }
+
+/* ═══════ Pipeline Stages ═══════ */
+.pipeline {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  overflow-x: auto;
+}
+.stage {
+  flex: 1;
+  min-width: 120px;
+  padding: 0.6rem 0.8rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  position: relative;
+  transition: all 0.3s;
+}
+.stage.active { border-color: var(--accent); color: var(--accent); }
+.stage.done { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+.stage.error { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+.stage.skipped { border-color: var(--text-dim); color: var(--text-dim); background: transparent; opacity: 0.5; text-decoration: line-through; }
+.stage .label { font-weight: 600; }
+.stage .time { display: block; font-size: 0.7rem; margin-top: 0.15rem; }
+
+/* ═══════ Criteria Card ═══════ */
+.criteria-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.criteria-card h3 {
+  font-size: 0.85rem;
+  color: var(--blue);
+  margin-bottom: 0.6rem;
+}
+.criteria-list {
+  list-style: none;
+}
+.criteria-list li {
+  padding: 0.4rem 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.criteria-list li:last-child { border: none; }
+.criteria-list .ctype {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 3px;
+  background: var(--blue-bg);
+  color: var(--blue);
+  margin-right: 0.4rem;
+}
+.criteria-list .cweight {
+  float: right;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+.search-queries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+.search-queries code {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.78rem;
+  font-family: var(--mono);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+}
+
+/* ═══════ Results ═══════ */
+.results-summary {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.stat-box {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+.stat-box .num {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+.stat-box .lbl {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.stat-perfect { background: var(--green-bg); }
+.stat-perfect .num { color: var(--green); }
+.stat-partial { background: var(--yellow-bg); }
+.stat-partial .num { color: var(--yellow); }
+.stat-reject { background: var(--red-bg); }
+.stat-reject .num { color: var(--red); }
+.stat-total { background: var(--blue-bg); }
+.stat-total .num { color: var(--blue); }
+
+.result-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+  transition: border-color 0.2s;
+}
+.result-card:hover { border-color: var(--border-focus); }
+.result-card.perfect { border-left: 3px solid var(--green); }
+.result-card.partial { border-left: 3px solid var(--yellow); }
+.result-card.reject { border-left: 3px solid var(--red); }
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.result-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
+}
+.result-badge {
+  flex-shrink: 0;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.badge-perfect { background: var(--green-bg); color: var(--green); }
+.badge-partial { background: var(--yellow-bg); color: var(--yellow); }
+.badge-reject { background: var(--red-bg); color: var(--red); }
+
+.result-content {
+  font-size: 0.83rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 0.5rem;
+  max-height: 4.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.result-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  flex-wrap: wrap;
+}
+.result-meta a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.result-meta a:hover { text-decoration: underline; }
+
+.result-assessments {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+.assessment-item {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 0.3rem 0;
+  font-size: 0.8rem;
+}
+.assessment-icon {
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+}
+
+.score-bar {
+  width: 50px;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 0.5rem;
+}
+.score-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s;
+}
+
+/* ═══════ Batch ═══════ */
+.batch-queries textarea {
+  width: 100%;
+  min-height: 100px;
+}
+
+/* ═══════ Log ═══════ */
+.log-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  max-height: 300px;
+  overflow-y: auto;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+.log-panel .log-entry { padding: 0.1rem 0; }
+.log-panel .log-time { color: var(--text-dim); margin-right: 0.5rem; }
+.log-panel .log-event { font-weight: 600; }
+.log-panel .ev-criteria { color: var(--blue); }
+.log-panel .ev-result { color: var(--green); }
+.log-panel .ev-done { color: var(--accent); }
+.log-panel .ev-error { color: var(--red); }
+
+/* ═══════ Spinner ═══════ */
+.spinner {
+  display: inline-block;
+  width: 16px; height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 0.4rem;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ═══════ Empty state ═══════ */
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-dim);
+}
+.empty-state .icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+  opacity: 0.4;
+}
+.empty-state p { font-size: 0.9rem; }
+
+/* ═══════ Responsive ═══════ */
+@media (max-width: 640px) {
+  .app { padding: 1rem; }
+  .pipeline { flex-wrap: wrap; }
+  .search-row { flex-direction: column; }
+  .results-summary { flex-wrap: wrap; }
+  .stat-box { min-width: 45%; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ═══ Header ═══ -->
+<header>
+  <h1><span>OpenSift</span> Debug Panel</h1>
+  <div class="health-badge" id="healthBadge" onclick="checkHealth()">
+    <div class="health-dot" id="healthDot"></div>
+    <span id="healthText">Checking...</span>
+  </div>
+</header>
+
+<!-- ═══ Tabs ═══ -->
+<div class="tabs">
+  <button class="tab-btn active" data-tab="search">Search</button>
+  <button class="tab-btn" data-tab="stream">Stream</button>
+  <button class="tab-btn" data-tab="plan">Plan</button>
+  <button class="tab-btn" data-tab="batch">Batch</button>
+  <button class="tab-btn" data-tab="log">Event Log</button>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     TAB 1: Complete Search
+     ══════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel active" id="tab-search">
+  <div class="search-box">
+    <label>Query</label>
+    <div class="search-row">
+      <input type="text" id="searchQuery" placeholder="e.g. solar nowcasting deep learning papers since 2022" />
+      <button class="btn" id="searchBtn" onclick="runSearch()">Search</button>
+    </div>
+    <div class="options-row">
+      <div class="option-group">
+        <label for="maxResults">Max results</label>
+        <input type="number" id="maxResults" value="10" min="1" max="100" style="width:60px" />
+      </div>
+      <div class="option-group">
+        <label for="verify"><input type="checkbox" id="verify" checked /> Verify</label>
+      </div>
+      <div class="option-group">
+        <label for="decompose"><input type="checkbox" id="decompose" checked /> Decompose</label>
+      </div>
+      <div class="option-group">
+        <label for="classifyOpt"><input type="checkbox" id="classifyOpt" checked /> Classify</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pipeline stages -->
+  <div class="pipeline" id="pipeline">
+    <div class="stage" id="s-plan"><div class="label">Planning</div><div class="time" id="s-plan-time"></div></div>
+    <div class="stage" id="s-search"><div class="label">Searching</div><div class="time" id="s-search-time"></div></div>
+    <div class="stage" id="s-verify"><div class="label">Verifying</div><div class="time" id="s-verify-time"></div></div>
+    <div class="stage" id="s-classify"><div class="label">Classifying</div><div class="time" id="s-classify-time"></div></div>
+    <div class="stage" id="s-done"><div class="label">Done</div><div class="time" id="s-done-time"></div></div>
+  </div>
+
+  <!-- Criteria -->
+  <div id="criteriaSection" style="display:none"></div>
+
+  <!-- Results -->
+  <div id="resultsSummary" style="display:none"></div>
+  <div id="resultsContainer"></div>
+
+  <div class="empty-state" id="emptySearch">
+    <div class="icon">&#128269;</div>
+    <p>Enter a query above to start an AI-enhanced search.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     TAB 2: Streaming Search
+     ══════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-stream">
+  <div class="search-box">
+    <label>Query (Streaming Mode)</label>
+    <div class="search-row">
+      <input type="text" id="streamQuery" placeholder="e.g. 有哪些关于太阳能即时预报的深度学习论文?" />
+      <button class="btn" id="streamBtn" onclick="runStream()">Stream</button>
+    </div>
+    <div class="options-row">
+      <div class="option-group">
+        <label for="streamMaxResults">Max results</label>
+        <input type="number" id="streamMaxResults" value="10" min="1" max="100" style="width:60px" />
+      </div>
+    </div>
+  </div>
+
+  <div class="pipeline" id="streamPipeline">
+    <div class="stage" id="ss-plan"><div class="label">Planning</div><div class="time" id="ss-plan-time"></div></div>
+    <div class="stage" id="ss-verify"><div class="label">Verifying</div><div class="time" id="ss-verify-time"></div></div>
+    <div class="stage" id="ss-done"><div class="label">Done</div><div class="time" id="ss-done-time"></div></div>
+  </div>
+
+  <div id="streamCriteria" style="display:none"></div>
+  <div id="streamProgress" style="display:none;margin-bottom:1rem;font-size:0.85rem;color:var(--text-muted)"></div>
+  <div id="streamResults"></div>
+
+  <div class="empty-state" id="emptyStream">
+    <div class="icon">&#9889;</div>
+    <p>Stream results one-by-one as they are verified in real time.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     TAB: Standalone Plan
+     ══════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-plan">
+  <div class="search-box">
+    <label>Query (Plan Only — no search, no verification)</label>
+    <div class="search-row">
+      <input type="text" id="planQuery" placeholder="e.g. Deep learning for solar nowcasting since 2022" />
+      <button class="btn" id="planBtn" onclick="runPlan()">Plan</button>
+    </div>
+    <div class="options-row">
+      <div class="option-group">
+        <label for="planDecompose"><input type="checkbox" id="planDecompose" checked /> Decompose</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="pipeline" id="planPipeline">
+    <div class="stage" id="sp-plan"><div class="label">Planning</div><div class="time" id="sp-plan-time"></div></div>
+    <div class="stage" id="sp-done"><div class="label">Done</div><div class="time" id="sp-done-time"></div></div>
+  </div>
+
+  <div id="planCriteria" style="display:none"></div>
+  <div id="planQueries" style="display:none"></div>
+  <div id="planJson" style="display:none"></div>
+
+  <div class="empty-state" id="emptyPlan">
+    <div class="icon">&#128203;</div>
+    <p>Generate search queries and screening criteria without running a search.<br>Use this to inspect what the Planner produces.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     TAB 3: Batch Search
+     ══════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-batch">
+  <div class="search-box batch-queries">
+    <label>Queries (one per line)</label>
+    <div class="search-row">
+      <textarea id="batchQueries" rows="4" placeholder="solar nowcasting&#10;wind power forecasting&#10;battery storage optimization"></textarea>
+    </div>
+    <div class="options-row">
+      <div class="option-group">
+        <label for="batchMax">Max results</label>
+        <input type="number" id="batchMax" value="5" min="1" max="100" style="width:60px" />
+      </div>
+      <div class="option-group">
+        <label for="batchExport">Export</label>
+        <select id="batchExport">
+          <option value="">None</option>
+          <option value="csv">CSV</option>
+          <option value="json">JSON</option>
+        </select>
+      </div>
+      <button class="btn" id="batchBtn" onclick="runBatch()">Run Batch</button>
+    </div>
+  </div>
+
+  <div id="batchSummary" style="display:none"></div>
+  <div id="batchResults"></div>
+  <div id="batchExportSection" style="display:none"></div>
+
+  <div class="empty-state" id="emptyBatch">
+    <div class="icon">&#128230;</div>
+    <p>Enter multiple queries to process them all at once.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     TAB 4: Event Log
+     ══════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-log">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+    <span style="font-size:0.85rem;color:var(--text-muted)">All API events are logged here for debugging.</span>
+    <button class="btn btn-sm btn-outline" onclick="clearLog()">Clear</button>
+  </div>
+  <div class="log-panel" id="logPanel">
+    <div class="empty-state" id="emptyLog" style="padding:2rem">
+      <p>No events yet.</p>
+    </div>
+  </div>
+</div>
+
+</div><!-- .app -->
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   State & Utilities
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const BASE = window.location.origin;
+let searchStart = 0;
+
+function ts() { return new Date().toLocaleTimeString('en-GB', { hour12: false }); }
+function ms(start) { return ((performance.now() - start) | 0) + ' ms'; }
+
+// ── Tabs ──
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Logging ──
+function logEvent(type, data) {
+  const panel = document.getElementById('logPanel');
+  const emptyLog = document.getElementById('emptyLog');
+  if (emptyLog) emptyLog.remove();
+
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  const evClass = 'ev-' + type;
+  let preview = '';
+  try { preview = JSON.stringify(data).substring(0, 200); } catch { preview = String(data); }
+  entry.innerHTML = `<span class="log-time">${ts()}</span><span class="log-event ${evClass}">[${type}]</span> ${escHtml(preview)}`;
+  panel.appendChild(entry);
+  panel.scrollTop = panel.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById('logPanel').innerHTML = '<div class="empty-state" id="emptyLog" style="padding:2rem"><p>No events yet.</p></div>';
+}
+
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ── Pipeline helpers ──
+function resetStages(prefix, ids) {
+  ids.forEach(id => {
+    const el = document.getElementById(prefix + id);
+    el.className = 'stage';
+    const t = document.getElementById(prefix + id + '-time');
+    if (t) t.textContent = '';
+  });
+}
+function setStage(prefix, id, cls, timeText) {
+  const el = document.getElementById(prefix + id);
+  el.className = 'stage ' + cls;
+  const t = document.getElementById(prefix + id + '-time');
+  if (t && timeText) t.textContent = timeText;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Health Check
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+async function checkHealth() {
+  const dot = document.getElementById('healthDot');
+  const text = document.getElementById('healthText');
+  try {
+    const resp = await fetch(BASE + '/v1/health');
+    const data = await resp.json();
+    dot.className = 'health-dot ok';
+    text.textContent = `v${data.version} — healthy`;
+    logEvent('health', data);
+  } catch (e) {
+    dot.className = 'health-dot err';
+    text.textContent = 'Unreachable';
+    logEvent('error', { message: 'Health check failed: ' + e.message });
+  }
+}
+checkHealth();
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Render Helpers
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function renderCriteria(cr, container) {
+  let html = '<div class="criteria-card"><h3>Generated Search Queries</h3><div class="search-queries">';
+  (cr.search_queries || []).forEach(q => { html += `<code>${escHtml(q)}</code>`; });
+  html += '</div></div>';
+
+  if (cr.criteria && cr.criteria.length) {
+    html += '<div class="criteria-card"><h3>Screening Criteria</h3><ul class="criteria-list">';
+    cr.criteria.forEach(c => {
+      html += `<li><span class="ctype">${escHtml(c.type)}</span>${escHtml(c.description)}<span class="cweight">w=${c.weight}</span></li>`;
+    });
+    html += '</ul></div>';
+  }
+  container.innerHTML = html;
+  container.style.display = 'block';
+}
+
+function assessmentIcon(a) {
+  if (a === 'support') return '<span style="color:var(--green)">&#10004;</span>';
+  if (a === 'somewhat_support') return '<span style="color:var(--yellow)">&#9679;</span>';
+  if (a === 'reject') return '<span style="color:var(--red)">&#10008;</span>';
+  return '<span style="color:var(--text-dim)">?</span>';
+}
+
+function scoreColor(s) {
+  if (s >= 0.8) return 'var(--green)';
+  if (s >= 0.4) return 'var(--yellow)';
+  return 'var(--red)';
+}
+
+function renderResultCard(scored) {
+  const r = scored.result || {};
+  const v = scored.validation || {};
+  const cls = scored.classification || 'reject';
+  const score = scored.weighted_score || 0;
+  const title = r.title || 'Untitled';
+  const content = (r.content || '').substring(0, 300);
+  const url = r.source_url;
+  const fields = r.fields || {};
+
+  let meta = '';
+  if (fields.authors) meta += `<span>${escHtml(fields.authors)}</span>`;
+  if (fields.publication_date) meta += `<span>${escHtml(fields.publication_date)}</span>`;
+  if (fields.conference_journal) meta += `<span>${escHtml(fields.conference_journal)}</span>`;
+  if (url && url !== 'N/A') meta += `<a href="${escHtml(url)}" target="_blank" rel="noopener">Source</a>`;
+
+  let assessments = '';
+  if (v.criteria_assessment && v.criteria_assessment.length) {
+    assessments = '<div class="result-assessments">';
+    v.criteria_assessment.forEach(ca => {
+      assessments += `<div class="assessment-item">
+        <div class="assessment-icon">${assessmentIcon(ca.assessment)}</div>
+        <div><strong>${escHtml(ca.criterion_id)}</strong>: ${escHtml(ca.explanation || '')}</div>
+      </div>`;
+    });
+    assessments += '</div>';
+  }
+
+  return `<div class="result-card ${cls}">
+    <div class="result-header">
+      <div class="result-title">${escHtml(title)}</div>
+      <div style="display:flex;align-items:center;gap:0.5rem">
+        <div class="score-bar"><div class="score-bar-fill" style="width:${score*100}%;background:${scoreColor(score)}"></div></div>
+        <span class="result-badge badge-${cls}">${cls}</span>
+      </div>
+    </div>
+    <div class="result-content">${escHtml(content)}</div>
+    ${v.summary ? `<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.4rem"><em>${escHtml(v.summary)}</em></div>` : ''}
+    <div class="result-meta">${meta}</div>
+    ${assessments}
+  </div>`;
+}
+
+function renderSummaryStats(perfect, partial, rejected, total) {
+  return `<div class="results-summary">
+    <div class="stat-box stat-perfect"><span class="num">${perfect}</span><span class="lbl">Perfect</span></div>
+    <div class="stat-box stat-partial"><span class="num">${partial}</span><span class="lbl">Partial</span></div>
+    <div class="stat-box stat-reject"><span class="num">${rejected}</span><span class="lbl">Rejected</span></div>
+    <div class="stat-box stat-total"><span class="num">${total}</span><span class="lbl">Scanned</span></div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Complete Search
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+async function runSearch() {
+  const query = document.getElementById('searchQuery').value.trim();
+  if (!query) return;
+
+  const btn = document.getElementById('searchBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Searching...';
+
+  // Reset
+  document.getElementById('emptySearch').style.display = 'none';
+  document.getElementById('criteriaSection').style.display = 'none';
+  document.getElementById('resultsSummary').style.display = 'none';
+  document.getElementById('resultsContainer').innerHTML = '';
+  resetStages('s-', ['plan', 'search', 'verify', 'classify', 'done']);
+
+  searchStart = performance.now();
+  setStage('s-', 'plan', 'active', '');
+
+  const doClassify = document.getElementById('classifyOpt').checked;
+
+  try {
+    const resp = await fetch(BASE + '/v1/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query,
+        options: {
+          max_results: parseInt(document.getElementById('maxResults').value) || 10,
+          verify: document.getElementById('verify').checked,
+          decompose: document.getElementById('decompose').checked,
+          classify: doClassify,
+          stream: false,
+        },
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+      throw new Error(err.detail || resp.statusText);
+    }
+
+    const data = await resp.json();
+    logEvent('search', { query, status: data.status, time_ms: data.processing_time_ms, classify: doClassify });
+
+    const elapsed = ms(searchStart);
+
+    // Pipeline
+    setStage('s-', 'plan', 'done', '');
+    setStage('s-', 'search', 'done', '');
+    setStage('s-', 'verify', 'done', '');
+    if (doClassify) {
+      setStage('s-', 'classify', 'done', '');
+    } else {
+      setStage('s-', 'classify', 'skipped', 'skipped');
+    }
+    setStage('s-', 'done', 'done', elapsed);
+
+    // Criteria
+    if (data.criteria_result) {
+      renderCriteria(data.criteria_result, document.getElementById('criteriaSection'));
+    }
+
+    const container = document.getElementById('resultsContainer');
+    const summaryEl = document.getElementById('resultsSummary');
+
+    if (doClassify) {
+      // Classified mode — show summary + classified cards
+      const perfect = (data.perfect_results || []).length;
+      const partial = (data.partial_results || []).length;
+      const rejected = data.rejected_count || 0;
+      const total = data.total_scanned || 0;
+
+      summaryEl.innerHTML = renderSummaryStats(perfect, partial, rejected, total);
+      summaryEl.style.display = 'block';
+
+      let html = '';
+      (data.perfect_results || []).forEach(r => { html += renderResultCard(r); });
+      (data.partial_results || []).forEach(r => { html += renderResultCard(r); });
+      container.innerHTML = html || '<div class="empty-state"><p>No results matched the criteria.</p></div>';
+    } else {
+      // Raw mode — show raw verified results
+      const rawResults = data.raw_results || [];
+      summaryEl.innerHTML = `<div class="stat-row"><span class="badge" style="background:var(--blue-bg);color:var(--blue)">${rawResults.length} Raw Verified Results</span> <span style="color:var(--text-muted);font-size:0.85rem">(classifier skipped)</span></div>`;
+      summaryEl.style.display = 'block';
+
+      let html = '';
+      rawResults.forEach((r, i) => {
+        const assessments = (r.validation?.criteria_assessment || []).map(a =>
+          `<span class="badge" style="background:${a.assessment === 'support' ? 'var(--green-bg);color:var(--green)' : a.assessment === 'reject' ? 'var(--red-bg);color:var(--red)' : 'var(--yellow-bg);color:var(--yellow)'}">${a.criterion_id}: ${a.assessment}</span>`
+        ).join(' ');
+        html += `<div class="card" style="margin-bottom:0.75rem"><div class="card-header"><strong>${escHtml(r.result?.title || 'Result ' + (i+1))}</strong></div><div style="padding:0.75rem"><div style="margin-bottom:0.5rem">${assessments}</div><div style="font-size:0.85rem;color:var(--text-muted)">${escHtml(r.validation?.summary || '')}</div></div></div>`;
+      });
+      container.innerHTML = html || '<div class="empty-state"><p>No results.</p></div>';
+    }
+
+  } catch (e) {
+    logEvent('error', { message: e.message });
+    setStage('s-', 'done', 'error', e.message.substring(0, 40));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Search';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Standalone Plan
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+async function runPlan() {
+  const query = document.getElementById('planQuery').value.trim();
+  if (!query) return;
+
+  const btn = document.getElementById('planBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Planning...';
+
+  document.getElementById('emptyPlan').style.display = 'none';
+  document.getElementById('planCriteria').style.display = 'none';
+  document.getElementById('planQueries').style.display = 'none';
+  document.getElementById('planJson').style.display = 'none';
+  resetStages('sp-', ['plan', 'done']);
+
+  const planStart = performance.now();
+  setStage('sp-', 'plan', 'active', '');
+
+  try {
+    const resp = await fetch(BASE + '/v1/plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query,
+        options: {
+          decompose: document.getElementById('planDecompose').checked,
+        },
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+      throw new Error(err.detail || resp.statusText);
+    }
+
+    const data = await resp.json();
+    logEvent('plan', { query, time_ms: data.processing_time_ms });
+
+    const elapsed = ms(planStart);
+    setStage('sp-', 'plan', 'done', data.processing_time_ms + 'ms');
+    setStage('sp-', 'done', 'done', elapsed);
+
+    // Show generated search queries
+    const queriesEl = document.getElementById('planQueries');
+    const qs = data.criteria_result?.search_queries || [];
+    queriesEl.innerHTML = `
+      <div class="card" style="margin-bottom:1rem">
+        <div class="card-header">
+          <span class="badge" style="background:var(--blue-bg);color:var(--blue)">${qs.length} Search Queries</span>
+          <span style="font-size:0.8rem;color:var(--text-muted)">request_id: ${data.request_id}</span>
+        </div>
+        <div style="padding:0.75rem">
+          ${qs.map((q, i) => `<div style="padding:0.3rem 0;color:var(--text)"><code style="color:var(--accent);margin-right:0.5rem">${i + 1}.</code>${escHtml(q)}</div>`).join('')}
+        </div>
+      </div>`;
+    queriesEl.style.display = 'block';
+
+    // Show criteria
+    if (data.criteria_result) {
+      renderCriteria(data.criteria_result, document.getElementById('planCriteria'));
+    }
+
+    // Show raw JSON
+    const jsonEl = document.getElementById('planJson');
+    jsonEl.innerHTML = `
+      <details style="margin-top:1rem">
+        <summary style="cursor:pointer;color:var(--text-muted);font-size:0.85rem">Raw JSON Response</summary>
+        <pre style="margin-top:0.5rem;padding:0.75rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);overflow:auto;max-height:400px;font-size:0.8rem;color:var(--text)">${escHtml(JSON.stringify(data, null, 2))}</pre>
+      </details>`;
+    jsonEl.style.display = 'block';
+
+  } catch (e) {
+    logEvent('error', { message: e.message });
+    setStage('sp-', 'done', 'error', e.message.substring(0, 40));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Plan';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Streaming Search
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+async function runStream() {
+  const query = document.getElementById('streamQuery').value.trim();
+  if (!query) return;
+
+  const btn = document.getElementById('streamBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Streaming...';
+
+  // Reset
+  document.getElementById('emptyStream').style.display = 'none';
+  document.getElementById('streamCriteria').style.display = 'none';
+  document.getElementById('streamResults').innerHTML = '';
+  document.getElementById('streamProgress').style.display = 'none';
+  resetStages('ss-', ['plan', 'verify', 'done']);
+
+  const startT = performance.now();
+  setStage('ss-', 'plan', 'active', '');
+
+  try {
+    const resp = await fetch(BASE + '/v1/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query,
+        options: {
+          max_results: parseInt(document.getElementById('streamMaxResults').value) || 10,
+          verify: true,
+          decompose: true,
+          stream: true,
+        },
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+      throw new Error(err.detail || resp.statusText);
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let resultCount = 0;
+    let totalResults = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop(); // Keep incomplete part
+
+      for (const part of parts) {
+        if (!part.trim()) continue;
+
+        let eventType = '';
+        let dataStr = '';
+        for (const line of part.split('\n')) {
+          if (line.startsWith('event:')) eventType = line.slice(6).trim();
+          else if (line.startsWith('data:')) dataStr = line.slice(5).trim();
+        }
+        if (!eventType || !dataStr) continue;
+
+        let data;
+        try { data = JSON.parse(dataStr); } catch { continue; }
+
+        logEvent(eventType, data);
+
+        if (eventType === 'criteria') {
+          setStage('ss-', 'plan', 'done', ms(startT));
+          setStage('ss-', 'verify', 'active', '');
+          if (data.criteria_result) {
+            renderCriteria(data.criteria_result, document.getElementById('streamCriteria'));
+          }
+        } else if (eventType === 'result') {
+          resultCount++;
+          totalResults = data.total || totalResults;
+          const progress = document.getElementById('streamProgress');
+          progress.innerHTML = `<span class="spinner"></span> Verified ${resultCount} / ${totalResults} results...`;
+          progress.style.display = 'block';
+
+          const container = document.getElementById('streamResults');
+          container.insertAdjacentHTML('beforeend', renderResultCard(data.scored_result));
+        } else if (eventType === 'done') {
+          setStage('ss-', 'verify', 'done', '');
+          setStage('ss-', 'done', 'done', (data.processing_time_ms || ms(startT)) + (typeof data.processing_time_ms === 'number' ? ' ms' : ''));
+
+          const progress = document.getElementById('streamProgress');
+          progress.innerHTML = `Completed: ${data.perfect_count || 0} perfect, ${data.partial_count || 0} partial, ${data.rejected_count || 0} rejected in ${data.processing_time_ms || '?'} ms`;
+          progress.style.display = 'block';
+        } else if (eventType === 'error') {
+          setStage('ss-', 'done', 'error', data.error ? data.error.substring(0, 40) : 'Error');
+        }
+      }
+    }
+  } catch (e) {
+    logEvent('error', { message: e.message });
+    setStage('ss-', 'done', 'error', e.message.substring(0, 40));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Stream';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Batch Search
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+async function runBatch() {
+  const text = document.getElementById('batchQueries').value.trim();
+  if (!text) return;
+  const queries = text.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!queries.length) return;
+
+  const btn = document.getElementById('batchBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Running...';
+
+  document.getElementById('emptyBatch').style.display = 'none';
+  document.getElementById('batchSummary').style.display = 'none';
+  document.getElementById('batchResults').innerHTML = '';
+  document.getElementById('batchExportSection').style.display = 'none';
+
+  try {
+    const exportFmt = document.getElementById('batchExport').value || undefined;
+    const resp = await fetch(BASE + '/v1/search/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        queries,
+        options: {
+          max_results: parseInt(document.getElementById('batchMax').value) || 5,
+          verify: true,
+          decompose: true,
+        },
+        export_format: exportFmt,
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+      throw new Error(err.detail || resp.statusText);
+    }
+
+    const data = await resp.json();
+    logEvent('batch', { total_queries: data.total_queries, time_ms: data.processing_time_ms });
+
+    // Summary
+    const summaryEl = document.getElementById('batchSummary');
+    summaryEl.innerHTML = `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:1rem">
+      <strong>${data.total_queries} queries</strong> processed in <strong>${data.processing_time_ms} ms</strong> — status: ${data.status}
+    </div>`;
+    summaryEl.style.display = 'block';
+
+    // Per-query results
+    const container = document.getElementById('batchResults');
+    (data.results || []).forEach((qr, idx) => {
+      let html = `<div style="margin-bottom:1.5rem">
+        <h3 style="font-size:0.9rem;color:var(--accent);margin-bottom:0.5rem">Query ${idx+1}: ${escHtml(qr.query)}</h3>`;
+
+      const perfect = (qr.perfect_results || []).length;
+      const partial = (qr.partial_results || []).length;
+      html += renderSummaryStats(perfect, partial, qr.rejected_count || 0, qr.total_scanned || 0);
+
+      (qr.perfect_results || []).forEach(r => { html += renderResultCard(r); });
+      (qr.partial_results || []).forEach(r => { html += renderResultCard(r); });
+
+      html += '</div>';
+      container.insertAdjacentHTML('beforeend', html);
+    });
+
+    // Export
+    if (data.export_data) {
+      const exportSec = document.getElementById('batchExportSection');
+      const blob = new Blob([data.export_data], { type: data.export_format === 'csv' ? 'text/csv' : 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const fname = 'opensift-batch.' + (data.export_format || 'txt');
+
+      exportSec.innerHTML = `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;margin-top:1rem">
+        <strong>Export ready</strong> (${data.export_format.toUpperCase()}) —
+        <a href="${url}" download="${fname}" style="color:var(--accent)">Download ${fname}</a>
+      </div>`;
+      exportSec.style.display = 'block';
+    }
+
+  } catch (e) {
+    logEvent('error', { message: e.message });
+    document.getElementById('batchResults').innerHTML = `<div class="empty-state"><p style="color:var(--red)">${escHtml(e.message)}</p></div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Run Batch';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Keyboard shortcut
+   ═══════════════════════════════════════════════════════════════════════════ */
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    const active = document.querySelector('.tab-panel.active');
+    if (active.id === 'tab-search' && document.activeElement.id === 'searchQuery') runSearch();
+    if (active.id === 'tab-stream' && document.activeElement.id === 'streamQuery') runStream();
+    if (active.id === 'tab-plan' && document.activeElement.id === 'planQuery') runPlan();
+  }
+});
+</script>
+</body>
+</html>

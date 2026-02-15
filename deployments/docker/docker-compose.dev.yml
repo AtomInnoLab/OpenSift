@@ -1,0 +1,59 @@
+# OpenSift Development Stack
+# Usage: docker-compose -f deployments/docker/docker-compose.dev.yml up
+
+services:
+  opensift:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - OPENSIFT_DEBUG=true
+      - OPENSIFT_AI__API_KEY=${OPENSIFT_AI__API_KEY:-}
+      - OPENSIFT_SEARCH__DEFAULT_ADAPTER=elasticsearch
+      - OPENSIFT_CACHE__REDIS_URL=redis://redis:6379
+      - OPENSIFT_OBSERVABILITY__LOG_LEVEL=debug
+      - OPENSIFT_OBSERVABILITY__LOG_FORMAT=console
+    depends_on:
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    volumes:
+      - ../../src:/app/src:ro  # Mount source for development
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    ports:
+      - "9200:9200"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  es_data:

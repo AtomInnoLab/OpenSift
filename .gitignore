@@ -1,0 +1,57 @@
+# ─── Python ──────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+
+# ─── Virtual Environments ────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ─── Poetry ──────────────────────────────────────────────
+# Include poetry.lock in VCS for applications
+# poetry.lock
+
+# ─── IDE ─────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# ─── Environment & Secrets ───────────────────────────────
+.env
+.env.local
+.env.production
+*.pem
+*.key
+credentials.json
+
+# ─── Testing ─────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# ─── OS ──────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── Docker ──────────────────────────────────────────────
+docker-compose.override.yml
+
+# ─── Documentation ───────────────────────────────────────
+site/
+
+# ─── Logs ────────────────────────────────────────────────
+*.log
+logs/
