@@ -32,7 +32,7 @@ OpenSift 不是一个搜索引擎，也不是问答系统。它是一个轻量�
 - **不相关（Rejected）** — 自动过滤，不展示
 
 <p align="center">
-  <img src="docs/architecture.png" alt="OpenSift 架构图" width="700" />
+  <img src="docs/architecture.jpg" alt="OpenSift 架构图" width="700" />
 </p>
 
 ## 快速开始

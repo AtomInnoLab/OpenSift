@@ -32,7 +32,7 @@ Traditional search systems return **keyword-matched** results, leaving users to 
 - **Rejected** — Filtered out automatically
 
 <p align="center">
-  <img src="docs/architecture.png" alt="OpenSift Architecture" width="700" />
+  <img src="docs/architecture.jpg" alt="OpenSift Architecture" width="700" />
 </p>
 
 ## Quick Start
