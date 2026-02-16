@@ -82,6 +82,11 @@ search:
         - "http://localhost:7700"
       index_pattern: "documents"      # MeiliSearch index UID
       api_key: ""                     # MeiliSearch master/API key
+    wikipedia:
+      enabled: false
+      index_pattern: "en"             # Wikipedia language code: en, zh, de, ja, fr, etc.
+      extra:
+        max_chars: 2000               # Max characters per article summary
   max_concurrent_queries: 10
 
 observability:

@@ -16,7 +16,7 @@
 
 **Open-source AI augmentation layer that adds intelligent query planning and result verification to any search backend.**
 
-OpenSift is not a search engine or a Q&A system. It is a lightweight AI middleware that plugs into your existing search backend (Elasticsearch, OpenSearch, Solr, MeiliSearch, AtomWalker, or any custom API) and injects two core AI capabilities:
+OpenSift is not a search engine or a Q&A system. It is a lightweight AI middleware that plugs into your existing search backend (Elasticsearch, OpenSearch, Solr, MeiliSearch, Wikipedia, AtomWalker, or any custom API) and injects two core AI capabilities:
 
 1. **Query Planning** — Decomposes natural language questions into precise search queries and quantified screening criteria
 2. **Result Verification** — Uses LLM to verify each search result against the criteria, with evidence and reasoning
@@ -308,7 +308,8 @@ opensift/
 │   │   ├── elasticsearch/        # Elasticsearch adapter
 │   │   ├── opensearch/           # OpenSearch adapter
 │   │   ├── solr/                 # Apache Solr adapter
-│   │   └── meilisearch/          # MeiliSearch adapter
+│   │   ├── meilisearch/          # MeiliSearch adapter
+│   │   └── wikipedia/            # Wikipedia adapter
 │   ├── models/                   # Data models (Pydantic)
 │   │   ├── criteria.py           # Criteria models (Criterion, CriteriaResult)
 │   │   ├── assessment.py         # Validation models (ValidationResult, ScoredResult)
@@ -370,6 +371,7 @@ Plug into any search backend via the adapter pattern. 5 built-in adapters:
 | **OpenSearch** | OpenSearch v2+ | `pip install opensift[opensearch]` | AWS-compatible Elasticsearch fork |
 | **Solr** | Apache Solr v8+ | — (uses httpx) | edismax full-text search + JSON Request API |
 | **MeiliSearch** | MeiliSearch | — (uses httpx) | Instant, typo-tolerant search |
+| **Wikipedia** | Wikipedia (all languages) | `wikipedia-api` | Multi-language encyclopedia article search |
 
 Implement the `SearchAdapter` interface to connect your own search backend.
 
@@ -377,7 +379,7 @@ Implement the `SearchAdapter` interface to connect your own search backend.
 
 ```yaml
 search:
-  default_adapter: meilisearch
+  default_adapter: meilisearch    # or: wikipedia
   adapters:
     meilisearch:
       enabled: true
@@ -549,7 +551,7 @@ docker-compose -f deployments/docker/docker-compose.dev.yml up
 - [x] Batch search with export (CSV / JSON)
 - [x] Local LLM support (Ollama, vLLM)
 - [x] Web UI debug panel
-- [x] More search backend adapters (OpenSearch, Solr, MeiliSearch)
+- [x] More search backend adapters (OpenSearch, Solr, MeiliSearch, Wikipedia)
 
 ## License
 

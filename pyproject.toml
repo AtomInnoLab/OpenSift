@@ -34,12 +34,14 @@ dependencies = [
     "structlog>=24.4.0",
     # LLM providers (OpenAI-compatible)
     "openai>=1.60.0",
+    "wikipedia-api (>=0.9.0,<0.10.0)",
 ]
 
 [project.optional-dependencies]
 elasticsearch = ["elasticsearch>=8.17.0"]
 opensearch = ["opensearch-py>=2.7.0"]
-all = ["elasticsearch>=8.17.0", "opensearch-py>=2.7.0"]
+wikipedia = ["wikipedia-api>=0.7.1"]
+all = ["elasticsearch>=8.17.0", "opensearch-py>=2.7.0", "wikipedia-api>=0.7.1"]
 
 [project.urls]
 Homepage = "https://github.com/opensift/opensift"

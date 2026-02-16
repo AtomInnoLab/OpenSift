@@ -114,6 +114,7 @@ _ADAPTER_MAP: dict[str, tuple[str, str]] = {
     "opensearch": ("opensift.adapters.opensearch.adapter", "OpenSearchAdapter"),
     "solr": ("opensift.adapters.solr.adapter", "SolrAdapter"),
     "meilisearch": ("opensift.adapters.meilisearch.adapter", "MeiliSearchAdapter"),
+    "wikipedia": ("opensift.adapters.wikipedia.adapter", "WikipediaAdapter"),
 }
 
 
@@ -153,18 +154,24 @@ async def _register_adapters(engine: OpenSiftEngine, settings: Settings) -> None
         collection_adapters = {"solr"}  # uses 'collection' instead of 'index'
 
         kwargs: dict[str, object] = {}
-        if adapter_cfg.hosts:
-            if adapter_name in url_adapters:
-                kwargs["base_url"] = adapter_cfg.hosts[0]
-            else:
-                kwargs["hosts"] = adapter_cfg.hosts
-        if adapter_cfg.index_pattern and adapter_cfg.index_pattern != "*":
-            if adapter_name in collection_adapters:
-                kwargs["collection"] = adapter_cfg.index_pattern
-            elif adapter_name in {"atomwalker", "meilisearch"}:
-                kwargs["index"] = adapter_cfg.index_pattern
-            else:
-                kwargs["index_pattern"] = adapter_cfg.index_pattern
+
+        # Wikipedia uses 'language' from index_pattern and has no hosts
+        if adapter_name == "wikipedia":
+            if adapter_cfg.index_pattern and adapter_cfg.index_pattern != "*":
+                kwargs["language"] = adapter_cfg.index_pattern
+        else:
+            if adapter_cfg.hosts:
+                if adapter_name in url_adapters:
+                    kwargs["base_url"] = adapter_cfg.hosts[0]
+                else:
+                    kwargs["hosts"] = adapter_cfg.hosts
+            if adapter_cfg.index_pattern and adapter_cfg.index_pattern != "*":
+                if adapter_name in collection_adapters:
+                    kwargs["collection"] = adapter_cfg.index_pattern
+                elif adapter_name in {"atomwalker", "meilisearch"}:
+                    kwargs["index"] = adapter_cfg.index_pattern
+                else:
+                    kwargs["index_pattern"] = adapter_cfg.index_pattern
         if adapter_cfg.api_key:
             kwargs["api_key"] = adapter_cfg.api_key
         if adapter_cfg.username:

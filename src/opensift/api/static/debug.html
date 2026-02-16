@@ -83,6 +83,20 @@ header h1 span { color: var(--accent); }
   transition: border-color 0.2s;
 }
 .health-badge:hover { border-color: var(--accent); }
+.adapter-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.adapter-badge .adapter-icon {
+  font-size: 0.85rem;
+}
 .health-dot {
   width: 8px; height: 8px;
   border-radius: 50%;
@@ -486,9 +500,14 @@ header h1 span { color: var(--accent); }
 <!-- ═══ Header ═══ -->
 <header>
   <h1><span>OpenSift</span> Debug Panel</h1>
-  <div class="health-badge" id="healthBadge" onclick="checkHealth()">
-    <div class="health-dot" id="healthDot"></div>
-    <span id="healthText">Checking...</span>
+  <div style="display:flex;align-items:center;gap:0.75rem">
+    <div class="adapter-badge" id="adapterBadge" title="Active search adapter">
+      <span id="adapterText" style="font-size:0.78rem;color:var(--text-dim)">—</span>
+    </div>
+    <div class="health-badge" id="healthBadge" onclick="checkHealth()">
+      <div class="health-dot" id="healthDot"></div>
+      <span id="healthText">Checking...</span>
+    </div>
   </div>
 </header>
 
@@ -735,15 +754,38 @@ function setStage(prefix, id, cls, timeText) {
 async function checkHealth() {
   const dot = document.getElementById('healthDot');
   const text = document.getElementById('healthText');
+  const adapterText = document.getElementById('adapterText');
   try {
     const resp = await fetch(BASE + '/v1/health');
     const data = await resp.json();
     dot.className = 'health-dot ok';
     text.textContent = `v${data.version} — healthy`;
+
+    // Show active adapter info
+    const defaultAdapter = data.default_adapter || '—';
+    const activeAdapters = data.active_adapters || [];
+    if (activeAdapters.length > 0) {
+      const adapterIcons = {
+        atomwalker: '🎓', elasticsearch: '🔍', opensearch: '🔍',
+        solr: '☀️', meilisearch: '⚡', wikipedia: '📖',
+      };
+      const icon = adapterIcons[defaultAdapter] || '🔌';
+      const others = activeAdapters.filter(a => a !== defaultAdapter);
+      let label = `${icon} ${defaultAdapter}`;
+      if (others.length > 0) label += ` (+${others.length})`;
+      adapterText.innerHTML = label;
+      adapterText.title = `Default: ${defaultAdapter}\nActive: ${activeAdapters.join(', ')}`;
+      adapterText.style.color = 'var(--text-muted)';
+    } else {
+      adapterText.textContent = '⚠ No adapters';
+      adapterText.style.color = 'var(--yellow)';
+    }
+
     logEvent('health', data);
   } catch (e) {
     dot.className = 'health-dot err';
     text.textContent = 'Unreachable';
+    adapterText.textContent = '—';
     logEvent('error', { message: 'Health check failed: ' + e.message });
   }
 }

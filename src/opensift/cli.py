@@ -90,6 +90,9 @@ def main() -> None:
     if args.log_level:
         settings.observability.log_level = args.log_level
 
+    # Check port availability before starting
+    _check_port(settings.server.host, settings.server.port)
+
     # Start server
     import uvicorn
 
@@ -102,6 +105,55 @@ def main() -> None:
         reload=args.reload,
         log_level=log_level.lower(),
     )
+
+
+def _check_port(host: str, port: int) -> None:
+    """Check if the port is available. If not, print the blocking process and exit."""
+    import socket
+    import subprocess
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.bind((host if host != "0.0.0.0" else "127.0.0.1", port))
+    except OSError:
+        print(f"\n{'=' * 60}", file=sys.stderr)
+        print(f"  ERROR: Port {port} is already in use!", file=sys.stderr)
+        print(f"{'=' * 60}", file=sys.stderr)
+
+        # Try lsof to find the process occupying the port
+        try:
+            result = subprocess.run(
+                ["lsof", "-i", f":{port}", "-P", "-n"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.stdout.strip():
+                print(f"\n  Processes using port {port}:\n", file=sys.stderr)
+                for line in result.stdout.strip().splitlines():
+                    print(f"    {line}", file=sys.stderr)
+
+                # Extract PIDs for kill hint
+                pids = set()
+                for line in result.stdout.strip().splitlines()[1:]:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        pids.add(parts[1])
+                if pids:
+                    pid_str = " ".join(sorted(pids))
+                    print("\n  To free the port, run:", file=sys.stderr)
+                    print(f"    kill {pid_str}", file=sys.stderr)
+                    print("  Or force kill:", file=sys.stderr)
+                    print(f"    kill -9 {pid_str}", file=sys.stderr)
+            else:
+                print(f"\n  Could not identify the process using port {port}.", file=sys.stderr)
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            print(f"\n  Run 'lsof -i :{port}' to find the process.", file=sys.stderr)
+
+        print(f"\n{'=' * 60}\n", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        sock.close()
 
 
 def _get_version() -> str:

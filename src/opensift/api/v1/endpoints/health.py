@@ -18,14 +18,18 @@ router = APIRouter()
 @router.get(
     "/health",
     summary="System Health Check",
-    description="Check overall system health status.",
+    description="Check overall system health status, including active adapter info.",
 )
-async def health_check() -> dict:
-    """Basic health check endpoint."""
+async def health_check(
+    engine: OpenSiftEngine = Depends(get_engine),
+) -> dict:
+    """Basic health check endpoint with adapter info."""
     return {
         "status": "healthy",
         "version": __version__,
         "service": "opensift",
+        "default_adapter": engine.settings.search.default_adapter,
+        "active_adapters": engine.adapter_registry.active_adapters,
     }
 
 
@@ -42,7 +46,4 @@ async def adapter_health(
     Returns health status, latency, and error rates for each adapter.
     """
     adapter_statuses = await engine.adapter_registry.health_check_all()
-    return {
-        name: status.model_dump()
-        for name, status in adapter_statuses.items()
-    }
+    return {name: status.model_dump() for name, status in adapter_statuses.items()}

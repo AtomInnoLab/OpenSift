@@ -44,19 +44,6 @@ typing_extensions = {version = ">=4.5", markers = "python_version < \"3.13\""}
 trio = ["trio (>=0.31.0) ; python_version < \"3.10\"", "trio (>=0.32.0) ; python_version >= \"3.10\""]
 
 [[package]]
-name = "async-timeout"
-version = "5.0.1"
-description = "Timeout context manager for asyncio programs"
-optional = false
-python-versions = ">=3.8"
-groups = ["main"]
-markers = "python_full_version < \"3.11.3\""
-files = [
-    {file = "async_timeout-5.0.1-py3-none-any.whl", hash = "sha256:39e3809566ff85354557ec2398b55e096c8364bacac9405a7a1fa429e77fe76c"},
-    {file = "async_timeout-5.0.1.tar.gz", hash = "sha256:d9321a7a3d5a6a5e187e824d2fa0793ce379a202935782d555d6e9d2735677d3"},
-]
-
-[[package]]
 name = "babel"
 version = "2.18.0"
 description = "Internationalization utilities"
@@ -237,7 +224,6 @@ files = [
     {file = "charset_normalizer-3.4.4-py3-none-any.whl", hash = "sha256:7a32c560861a02ff789ad905a2fe94e3f840803362c84fecf1851cb4cf3dc37f"},
     {file = "charset_normalizer-3.4.4.tar.gz", hash = "sha256:94537985111c35f28720e43603b8e7b43a6ecfb2ce1d3058bbe955b73404e21a"},
 ]
-markers = {main = "extra == \"opensearch\" or extra == \"all\""}
 
 [[package]]
 name = "click"
@@ -1989,27 +1975,6 @@ files = [
 pyyaml = "*"
 
 [[package]]
-name = "redis"
-version = "7.1.1"
-description = "Python client for Redis database and key-value store"
-optional = false
-python-versions = ">=3.10"
-groups = ["main"]
-files = [
-    {file = "redis-7.1.1-py3-none-any.whl", hash = "sha256:f77817f16071c2950492c67d40b771fa493eb3fccc630a424a10976dbb794b7a"},
-    {file = "redis-7.1.1.tar.gz", hash = "sha256:a2814b2bda15b39dad11391cc48edac4697214a8a5a4bd10abe936ab4892eb43"},
-]
-
-[package.dependencies]
-async-timeout = {version = ">=4.0.3", markers = "python_full_version < \"3.11.3\""}
-
-[package.extras]
-circuit-breaker = ["pybreaker (>=1.4.0)"]
-hiredis = ["hiredis (>=3.2.0)"]
-jwt = ["pyjwt (>=2.9.0)"]
-ocsp = ["cryptography (>=36.0.1)", "pyopenssl (>=20.0.1)", "requests (>=2.31.0)"]
-
-[[package]]
 name = "requests"
 version = "2.32.5"
 description = "Python HTTP for Humans."
@@ -2020,7 +1985,6 @@ files = [
     {file = "requests-2.32.5-py3-none-any.whl", hash = "sha256:2462f94637a34fd532264295e186976db0f5d453d1cdd31473c85a6a161affb6"},
     {file = "requests-2.32.5.tar.gz", hash = "sha256:dbba0bac56e100853db0ea71b82b4dfd5fe2bf6d3754a8893c3af500cec7d7cf"},
 ]
-markers = {main = "extra == \"opensearch\" or extra == \"all\""}
 
 [package.dependencies]
 certifi = ">=2017.4.17"
@@ -2176,7 +2140,6 @@ files = [
     {file = "urllib3-2.6.3-py3-none-any.whl", hash = "sha256:bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4"},
     {file = "urllib3-2.6.3.tar.gz", hash = "sha256:1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed"},
 ]
-markers = {main = "extra == \"opensearch\" or extra == \"all\" or extra == \"elasticsearch\""}
 
 [package.extras]
 brotli = ["brotli (>=1.2.0) ; platform_python_implementation == \"CPython\"", "brotlicffi (>=1.2.0.0) ; platform_python_implementation != \"CPython\""]
@@ -2532,12 +2495,27 @@ files = [
     {file = "websockets-16.0.tar.gz", hash = "sha256:5f6261a5e56e8d5c42a4497b364ea24d94d9563e8fbd44e78ac40879c60179b5"},
 ]
 
+[[package]]
+name = "wikipedia-api"
+version = "0.9.0"
+description = "Python Wrapper for Wikipedia"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "wikipedia_api-0.9.0.tar.gz", hash = "sha256:6aabd1f9fe34f594f4d36f5af67e468b0a50d713aa9a1d102b4d996bc76dd58e"},
+]
+
+[package.dependencies]
+requests = "*"
+
 [extras]
-all = ["elasticsearch", "opensearch-py"]
+all = ["elasticsearch", "opensearch-py", "wikipedia-api"]
 elasticsearch = ["elasticsearch"]
 opensearch = ["opensearch-py"]
+wikipedia = ["wikipedia-api"]
 
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.14"
-content-hash = "11e91aa32db7964319f3a20ce1b8df69118a91753cd235d01726d562dd57857c"
+content-hash = "ffa163c9bc305b20051137b289dc6cb7aee05c88b80201412995668533e6ba49"

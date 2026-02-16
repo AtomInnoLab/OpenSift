@@ -16,7 +16,7 @@
 
 **让现有搜索系统快速接入 AI 能力的开源增强层。**
 
-OpenSift 不是一个搜索引擎，也不是问答系统。它是一个轻量级的 AI 中间层，接入你现有的搜索后端（Elasticsearch、OpenSearch、Solr、MeiliSearch、AtomWalker 学术搜索、或任何自定义 API），为其注入两项核心 AI 能力：
+OpenSift 不是一个搜索引擎，也不是问答系统。它是一个轻量级的 AI 中间层，接入你现有的搜索后端（Elasticsearch、OpenSearch、Solr、MeiliSearch、Wikipedia、AtomWalker 学术搜索、或任何自定义 API），为其注入两项核心 AI 能力：
 
 1. **智能查询规划（Query Planning）** — 将用户的自然语言问题分解为精准的搜索问句和量化的筛选条件
 2. **结果智能验证（Result Verification）** — 用 LLM 逐条验证搜索结果是否真正符合筛选条件，给出判定依据
@@ -308,7 +308,8 @@ opensift/
 │   │   ├── elasticsearch/        # Elasticsearch 适配器
 │   │   ├── opensearch/           # OpenSearch 适配器
 │   │   ├── solr/                 # Apache Solr 适配器
-│   │   └── meilisearch/          # MeiliSearch 适配器
+│   │   ├── meilisearch/          # MeiliSearch 适配器
+│   │   └── wikipedia/            # Wikipedia 适配器
 │   ├── models/                   # 数据模型 (Pydantic)
 │   │   ├── criteria.py           # 搜索条件模型 (Criterion, CriteriaResult)
 │   │   ├── assessment.py         # 验证结果模型 (ValidationResult, ScoredResult)
@@ -370,6 +371,7 @@ opensift/
 | **OpenSearch** | OpenSearch v2+ | `pip install opensift[opensearch]` | AWS 兼容的 Elasticsearch 分支 |
 | **Solr** | Apache Solr v8+ | — (使用 httpx) | edismax 全文搜索 + JSON Request API |
 | **MeiliSearch** | MeiliSearch | — (使用 httpx) | 即时搜索、自动纠错 |
+| **Wikipedia** | Wikipedia（全语种） | `wikipedia-api` | 多语言百科全书文章搜索 |
 
 实现 `SearchAdapter` 接口即可接入自定义搜索后端。
 
@@ -377,7 +379,7 @@ opensift/
 
 ```yaml
 search:
-  default_adapter: meilisearch
+  default_adapter: meilisearch    # 或: wikipedia
   adapters:
     meilisearch:
       enabled: true
@@ -549,7 +551,7 @@ docker-compose -f deployments/docker/docker-compose.dev.yml up
 - [x] 批量搜索与导出 (CSV / JSON)
 - [x] 本地 LLM 支持 (Ollama, vLLM)
 - [x] Web UI 调试面板
-- [x] 更多搜索后端适配器 (OpenSearch, Solr, MeiliSearch)
+- [x] 更多搜索后端适配器 (OpenSearch, Solr, MeiliSearch, Wikipedia)
 
 ## License
 
