@@ -45,6 +45,9 @@ class QueryPlanner:
         # Initialize LLM client if API key is configured
         if settings.ai.api_key and settings.ai.api_key not in ("", "test-key"):
             self._llm_client = LLMClient(settings.ai)
+            logger.info("Planner LLM client initialized (model=%s)", settings.ai.model_planner)
+        else:
+            logger.warning("Planner LLM client NOT initialized (no API key) — using heuristic fallback")
 
     async def plan(self, request: SearchRequest) -> CriteriaResult:
         """Generate search queries and criteria for the given request.
@@ -64,20 +67,29 @@ class QueryPlanner:
         # Try LLM-based criteria generation
         if self._llm_client:
             try:
+                logger.info(
+                    "Planner calling LLM: query=%r, model=%s, base_url=%s",
+                    request.query[:120],
+                    self.settings.ai.model_planner,
+                    self.settings.ai.base_url,
+                )
                 result = await self._generate_with_llm(request.query)
                 elapsed_ms = int((time.monotonic() - start_time) * 1000)
                 logger.info(
-                    "Criteria generated via LLM",
-                    extra={
-                        "query": request.query,
-                        "search_queries_count": len(result.search_queries),
-                        "criteria_count": len(result.criteria),
-                        "elapsed_ms": elapsed_ms,
-                    },
+                    "Criteria generated via LLM in %d ms: %d search_queries, %d criteria",
+                    elapsed_ms,
+                    len(result.search_queries),
+                    len(result.criteria),
                 )
                 return result
-            except (LLMError, Exception):
-                logger.warning("LLM criteria generation failed, falling back to heuristic", exc_info=True)
+            except (LLMError, Exception) as exc:
+                logger.warning(
+                    "LLM criteria generation failed (model=%s, url=%s): %s — falling back to heuristic",
+                    self.settings.ai.model_planner,
+                    self.settings.ai.base_url,
+                    exc,
+                    exc_info=True,
+                )
 
         # Fallback to heuristic
         if self.settings.ai.fallback_to_local:

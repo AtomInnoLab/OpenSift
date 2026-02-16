@@ -2,7 +2,59 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+# All valid criterion types returned by WisModel.
+# The LLM may also produce new types not in this list; the field accepts any str.
+CRITERION_TYPES = (
+    "task",
+    "method",
+    "topic",
+    "substance",
+    "time",
+    "population",
+    "disease",
+    "dataset",
+    "document_type",
+    "performance",
+    "properties",
+    "background",
+    "affiliation",
+    "location",
+    "mechanism",
+    "state",
+    "publication_venue",
+    "resource_property",
+    "condition",
+    "indicator",
+    "person",
+)
+
+CriterionType = Literal[
+    "task",
+    "method",
+    "topic",
+    "substance",
+    "time",
+    "population",
+    "disease",
+    "dataset",
+    "document_type",
+    "performance",
+    "properties",
+    "background",
+    "affiliation",
+    "location",
+    "mechanism",
+    "state",
+    "publication_venue",
+    "resource_property",
+    "condition",
+    "indicator",
+    "person",
+]
 
 
 class Criterion(BaseModel):
@@ -13,7 +65,14 @@ class Criterion(BaseModel):
     """
 
     criterion_id: str = Field(description="Unique criterion identifier (e.g., criterion_1)")
-    type: str = Field(description="Criterion type (task, method, topic, time, population, etc.)")
+    type: str = Field(
+        description=(
+            "Criterion type. Common types: task, method, topic, substance, time, "
+            "population, disease, dataset, document_type, performance, properties, "
+            "background, affiliation, location, mechanism, state, publication_venue, "
+            "resource_property, condition, indicator, person"
+        ),
+    )
     name: str = Field(description="Concise label summarizing the criterion")
     description: str = Field(description="One-sentence rule defining the criterion")
     weight: float = Field(default=0.0, ge=0.0, le=1.0, description="Weight of this criterion (all weights sum to 1.0)")

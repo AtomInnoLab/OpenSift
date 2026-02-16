@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -67,6 +67,23 @@ class AdapterConfig(BaseModel):
     api_key: str | None = Field(default=None, description="API key authentication")
     extra: dict[str, Any] = Field(default_factory=dict, description="Adapter-specific options")
 
+    @field_validator("hosts", mode="before")
+    @classmethod
+    def _parse_hosts(cls, v: Any) -> list[str]:
+        """Parse hosts from JSON string (env var) or list."""
+        if isinstance(v, str):
+            import json
+
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+            except (json.JSONDecodeError, TypeError):
+                pass
+            # Single host as plain string
+            return [v] if v else []
+        return v
+
 
 class SearchSettings(BaseModel):
     """Search behavior configuration."""
@@ -74,15 +91,6 @@ class SearchSettings(BaseModel):
     default_adapter: str = Field(default="atomwalker", description="Default search adapter name")
     adapters: dict[str, AdapterConfig] = Field(default_factory=dict, description="Adapter configurations")
     max_concurrent_queries: int = Field(default=10, description="Max concurrent sub-queries")
-
-
-class CacheSettings(BaseModel):
-    """Cache configuration."""
-
-    backend: str = Field(default="redis", description="Cache backend: redis, memory")
-    redis_url: str = Field(default="redis://localhost:6379", description="Redis connection URL")
-    ttl_query_plans: int = Field(default=3600, description="TTL for query plans (seconds)")
-    ttl_search_results: int = Field(default=300, description="TTL for search results (seconds)")
 
 
 class ObservabilitySettings(BaseModel):
@@ -104,7 +112,13 @@ class Settings(BaseSettings):
         OPENSIFT_SEARCH__DEFAULT_ADAPTER=atomwalker
     """
 
-    model_config = {"env_prefix": "OPENSIFT_", "env_nested_delimiter": "__", "case_sensitive": False}
+    model_config = {
+        "env_prefix": "OPENSIFT_",
+        "env_nested_delimiter": "__",
+        "case_sensitive": False,
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+    }
 
     # Application metadata
     app_name: str = Field(default="OpenSift", description="Application name")
@@ -115,7 +129,6 @@ class Settings(BaseSettings):
     server: ServerSettings = Field(default_factory=ServerSettings)
     ai: AISettings = Field(default_factory=AISettings)
     search: SearchSettings = Field(default_factory=SearchSettings)
-    cache: CacheSettings = Field(default_factory=CacheSettings)
     observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)
 
     @classmethod

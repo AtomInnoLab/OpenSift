@@ -12,29 +12,13 @@ services:
       - OPENSIFT_DEBUG=true
       - OPENSIFT_AI__API_KEY=${OPENSIFT_AI__API_KEY:-}
       - OPENSIFT_SEARCH__DEFAULT_ADAPTER=elasticsearch
-      - OPENSIFT_CACHE__REDIS_URL=redis://redis:6379
       - OPENSIFT_OBSERVABILITY__LOG_LEVEL=debug
       - OPENSIFT_OBSERVABILITY__LOG_FORMAT=console
     depends_on:
-      redis:
-        condition: service_healthy
       elasticsearch:
         condition: service_healthy
     volumes:
       - ../../src:/app/src:ro  # Mount source for development
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     restart: unless-stopped
 
   elasticsearch:
@@ -55,5 +39,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  redis_data:
   es_data:

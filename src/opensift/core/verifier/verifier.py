@@ -59,6 +59,9 @@ class EvidenceVerifier:
 
         if settings.ai.api_key and settings.ai.api_key not in ("", "test-key"):
             self._llm_client = LLMClient(settings.ai)
+            logger.info("Verifier LLM client initialized (model=%s)", settings.ai.model_verifier)
+        else:
+            logger.warning("Verifier LLM client NOT initialized (no API key) — using fallback")
 
     async def verify(
         self,
@@ -170,9 +173,7 @@ class EvidenceVerifier:
         and delegates to :meth:`verify_batch`.
         """
         items: list[ResultItem] = [p.to_result_item() for p in papers]  # type: ignore[union-attr]
-        return await self.verify_batch(
-            items, criteria, query, question_lang, max_concurrent=max_concurrent
-        )
+        return await self.verify_batch(items, criteria, query, question_lang, max_concurrent=max_concurrent)
 
     # ── Internal ──
 
@@ -208,11 +209,19 @@ class EvidenceVerifier:
 
         if item.result_type == "paper":
             system_prompt, user_prompt = self._build_paper_prompt(
-                item, criteria_xml, query, current_time, question_lang,
+                item,
+                criteria_xml,
+                query,
+                current_time,
+                question_lang,
             )
         else:
             system_prompt, user_prompt = self._build_generic_prompt(
-                item, criteria_xml, query, current_time, question_lang,
+                item,
+                criteria_xml,
+                query,
+                current_time,
+                question_lang,
             )
 
         raw = await self._llm_client.chat_json(
@@ -278,9 +287,7 @@ class EvidenceVerifier:
         )
         return VALIDATION_SYSTEM_PROMPT, user_prompt
 
-    def _parse_validation_response(
-        self, raw: dict, criteria: list[Criterion]
-    ) -> ValidationResult:
+    def _parse_validation_response(self, raw: dict, criteria: list[Criterion]) -> ValidationResult:
         """Parse LLM validation response into a ValidationResult.
 
         Args:

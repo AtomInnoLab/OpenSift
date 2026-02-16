@@ -311,7 +311,6 @@ opensift/
 │   │   └── v1/endpoints/
 │   │       ├── search.py         # 搜索 (完整 + 流式)
 │   │       └── batch.py          # 批量搜索 + 导出
-│   ├── cache/                    # 缓存层 (Redis / 内存)
 │   ├── config/                   # 配置管理 (YAML + 环境变量)
 │   └── observability/            # 日志
 ├── tests/                        # 测试
@@ -514,15 +513,14 @@ OpenSift 支持三层配置（优先级从高到低）：
 | `OPENSIFT_AI__MODEL_PLANNER` | 查询规划模型 | `WisModel-20251110` |
 | `OPENSIFT_AI__MODEL_VERIFIER` | 结果验证模型 | `WisModel-20251110` |
 | `OPENSIFT_SEARCH__DEFAULT_ADAPTER` | 默认搜索后端 | `atomwalker` |
-| `OPENSIFT_CACHE__BACKEND` | 缓存后端 | `redis` |
 
 ## Docker
 
 ```bash
-# 最小部署 (OpenSift + Redis)
+# 最小部署
 docker-compose -f deployments/docker/docker-compose.minimal.yml up
 
-# 开发环境 (OpenSift + Redis + Elasticsearch)
+# 开发环境 (OpenSift + Elasticsearch)
 docker-compose -f deployments/docker/docker-compose.dev.yml up
 ```
 
@@ -534,7 +532,6 @@ docker-compose -f deployments/docker/docker-compose.dev.yml up
 - [x] AtomWalker 学术搜索适配器
 - [x] Elasticsearch 适配器
 - [x] REST API (FastAPI)
-- [x] Redis 缓存
 - [x] 流式输出 (SSE)
 - [x] Python SDK (同步 + 异步)
 - [x] 批量搜索与导出 (CSV / JSON)

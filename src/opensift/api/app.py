@@ -33,7 +33,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         Configured FastAPI application.
     """
     if settings is None:
-        settings = Settings()
+        # Auto-detect opensift-config.yaml if present
+        yaml_path = Path("opensift-config.yaml")
+        if yaml_path.exists():
+            logger.info("Loading configuration from %s", yaml_path)
+            settings = Settings.from_yaml(yaml_path)
+        else:
+            settings = Settings()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:

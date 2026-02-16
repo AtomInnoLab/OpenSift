@@ -28,8 +28,6 @@ dependencies = [
     "pydantic-settings>=2.7.0",
     # Async HTTP client (adapters, LLM fallback)
     "httpx>=0.28.0",
-    # Caching
-    "redis>=5.2.0",
     # Configuration
     "pyyaml>=6.0.0",
     # Structured logging
@@ -111,7 +109,7 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
-module = ["redis.*", "elasticsearch.*"]
+module = ["elasticsearch.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

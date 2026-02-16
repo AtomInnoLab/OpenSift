@@ -311,7 +311,6 @@ opensift/
 │   │   └── v1/endpoints/
 │   │       ├── search.py         # Search (complete + streaming)
 │   │       └── batch.py          # Batch search + export
-│   ├── cache/                    # Cache layer (Redis / in-memory)
 │   ├── config/                   # Config management (YAML + env vars)
 │   └── observability/            # Logging
 ├── tests/                        # Tests
@@ -514,15 +513,14 @@ OpenSift supports three layers of configuration (highest to lowest priority):
 | `OPENSIFT_AI__MODEL_PLANNER` | Query planning model | `WisModel-20251110` |
 | `OPENSIFT_AI__MODEL_VERIFIER` | Result verification model | `WisModel-20251110` |
 | `OPENSIFT_SEARCH__DEFAULT_ADAPTER` | Default search backend | `atomwalker` |
-| `OPENSIFT_CACHE__BACKEND` | Cache backend | `redis` |
 
 ## Docker
 
 ```bash
-# Minimal deployment (OpenSift + Redis)
+# Minimal deployment
 docker-compose -f deployments/docker/docker-compose.minimal.yml up
 
-# Development environment (OpenSift + Redis + Elasticsearch)
+# Development environment (OpenSift + Elasticsearch)
 docker-compose -f deployments/docker/docker-compose.dev.yml up
 ```
 
@@ -534,7 +532,6 @@ docker-compose -f deployments/docker/docker-compose.dev.yml up
 - [x] AtomWalker academic search adapter
 - [x] Elasticsearch adapter
 - [x] REST API (FastAPI)
-- [x] Redis cache
 - [x] Streaming output (SSE)
 - [x] Python SDK (sync + async)
 - [x] Batch search with export (CSV / JSON)

@@ -55,3 +55,5 @@ site/
 # ─── Logs ────────────────────────────────────────────────
 *.log
 logs/
+
+opensift-config.yaml

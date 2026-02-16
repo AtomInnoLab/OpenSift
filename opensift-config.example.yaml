@@ -16,7 +16,7 @@ server:
 ai:
   # Default: WisModel — specifically trained for query planning & verification
   provider: "wismodel"
-  api_key: "wsk_3af5178deee54f629ef480a82beab431"
+  api_key: "wsk_4c5bc16a13064ca8aadefe9a05290634"
   base_url: "http://wis-apihub-v2.dev.atominnolab.com/api/v1/resource/WisModel/v1"
   model_planner: "WisModel-20251110"     # query planning & criteria generation
   model_verifier: "WisModel-20251110"    # result verification against criteria
@@ -53,7 +53,7 @@ search:
       index_pattern: "atomwalker-works"
       api_key: "wsk_3af5178deee54f629ef480a82beab431"
       extra:
-        search_strategy: "fast"   # fast | comprehensive
+        search_strategy: "fast"   # fast | full
         timeout: 30.0
     elasticsearch:
       enabled: false
@@ -83,12 +83,6 @@ search:
       index_pattern: "documents"      # MeiliSearch index UID
       api_key: ""                     # MeiliSearch master/API key
   max_concurrent_queries: 10
-
-cache:
-  backend: "redis"  # redis, memory
-  redis_url: "redis://localhost:6379"
-  ttl_query_plans: 3600      # 1 hour
-  ttl_search_results: 300    # 5 minutes
 
 observability:
   log_level: "info"          # debug, info, warning, error

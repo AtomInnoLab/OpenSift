@@ -21,9 +21,9 @@ from opensift.models.result import ResultItem
 def settings() -> Settings:
     """Create a test Settings instance with defaults."""
     return Settings(
+        _env_file=None,  # type: ignore[call-arg]
         debug=True,
         ai={"api_key": "test-key", "fallback_to_local": True},
-        cache={"backend": "memory"},
     )
 
 

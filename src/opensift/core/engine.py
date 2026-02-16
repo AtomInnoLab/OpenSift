@@ -23,7 +23,6 @@ from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
 from opensift.adapters.base.registry import AdapterRegistry
-from opensift.cache.manager import CacheManager
 from opensift.core.classifier import ResultClassifier
 from opensift.core.planner import QueryPlanner
 from opensift.core.verifier import EvidenceVerifier
@@ -63,7 +62,6 @@ class OpenSiftEngine:
         planner: Criteria generation planner.
         verifier: Result validation verifier.
         adapter_registry: Registry of search adapters.
-        cache: Cache manager.
     """
 
     def __init__(self, settings: Settings) -> None:
@@ -71,17 +69,34 @@ class OpenSiftEngine:
         self.planner = QueryPlanner(settings)
         self.verifier = EvidenceVerifier(settings)
         self.adapter_registry = AdapterRegistry()
-        self.cache = CacheManager(settings.cache)
 
     async def initialize(self) -> None:
-        """Initialize all engine components."""
-        await self.cache.initialize()
+        """Initialize all engine components (including LLM connectivity check)."""
+        # Verify LLM connectivity for planner and verifier
+        if self.planner._llm_client:
+            ok = await self.planner._llm_client.verify_connection(
+                model=self.settings.ai.model_planner,
+            )
+            if not ok:
+                logger.error(
+                    "Planner LLM connectivity check FAILED — planning will fall back to heuristics. "
+                    "Check AI__API_KEY, AI__BASE_URL, and AI__MODEL_PLANNER settings."
+                )
+        if self.verifier._llm_client:
+            ok = await self.verifier._llm_client.verify_connection(
+                model=self.settings.ai.model_verifier,
+            )
+            if not ok:
+                logger.error(
+                    "Verifier LLM connectivity check FAILED — verification will fall back to heuristics. "
+                    "Check AI__API_KEY, AI__BASE_URL, and AI__MODEL_VERIFIER settings."
+                )
+
         logger.info("OpenSift engine initialized")
 
     async def shutdown(self) -> None:
         """Gracefully shut down all components."""
         await self.adapter_registry.shutdown_all()
-        await self.cache.shutdown()
         logger.info("OpenSift engine shut down")
 
     # ──────────────────────────────────────────────────────────────────────
@@ -177,17 +192,12 @@ class OpenSiftEngine:
             )
         else:
             # Skip verification — return all as insufficient_information
-            validations = [
-                self.verifier._fallback_validation(criteria_result.criteria)
-                for _ in results
-            ]
+            validations = [self.verifier._fallback_validation(criteria_result.criteria) for _ in results]
 
         # ── Stage 4: Classify results (or skip) ──
         if request.options.classify:
             logger.info("Stage 4: Classifying %d results", len(results))
-            scored = ResultClassifier.classify_batch(
-                results, validations, criteria_result.criteria
-            )
+            scored = ResultClassifier.classify_batch(results, validations, criteria_result.criteria)
 
             # Separate by classification
             perfect = [r for r in scored if r.classification == ResultClassification.PERFECT]
@@ -310,17 +320,17 @@ class OpenSiftEngine:
                 async with semaphore:
                     if request.options.verify:
                         validation = await self.verifier.verify(
-                            item, criteria, request.query, question_lang,
+                            item,
+                            criteria,
+                            request.query,
+                            question_lang,
                         )
                     else:
                         validation = self.verifier._fallback_validation(criteria)
                     return item, validation
 
             # Launch all verification tasks concurrently, yield as they complete
-            pending = {
-                asyncio.ensure_future(_verify_item(item)): i
-                for i, item in enumerate(items)
-            }
+            pending = {asyncio.ensure_future(_verify_item(item)): i for i, item in enumerate(items)}
 
             for index, coro in enumerate(asyncio.as_completed(pending), start=1):
                 item, validation = await coro
@@ -483,15 +493,17 @@ class OpenSiftEngine:
             rows = []
             for resp in results:
                 for scored in [*resp.perfect_results, *resp.partial_results]:
-                    rows.append({
-                        "query": resp.query,
-                        "classification": scored.classification.value,
-                        "weighted_score": scored.weighted_score,
-                        "title": scored.result.get("title", ""),
-                        "content": scored.result.get("content", "")[:200],
-                        "source_url": scored.result.get("source_url", ""),
-                        "summary": scored.validation.summary,
-                    })
+                    rows.append(
+                        {
+                            "query": resp.query,
+                            "classification": scored.classification.value,
+                            "weighted_score": scored.weighted_score,
+                            "title": scored.result.get("title", ""),
+                            "content": scored.result.get("content", "")[:200],
+                            "source_url": scored.result.get("source_url", ""),
+                            "summary": scored.validation.summary,
+                        }
+                    )
             return json_mod.dumps(rows, ensure_ascii=False, indent=2)
 
         if fmt == "csv":
@@ -500,21 +512,30 @@ class OpenSiftEngine:
 
             output = io.StringIO()
             writer = csv.writer(output)
-            writer.writerow([
-                "query", "classification", "weighted_score",
-                "title", "content_preview", "source_url", "summary",
-            ])
+            writer.writerow(
+                [
+                    "query",
+                    "classification",
+                    "weighted_score",
+                    "title",
+                    "content_preview",
+                    "source_url",
+                    "summary",
+                ]
+            )
             for resp in results:
                 for scored in [*resp.perfect_results, *resp.partial_results]:
-                    writer.writerow([
-                        resp.query,
-                        scored.classification.value,
-                        scored.weighted_score,
-                        scored.result.get("title", ""),
-                        scored.result.get("content", "")[:200],
-                        scored.result.get("source_url", ""),
-                        scored.validation.summary,
-                    ])
+                    writer.writerow(
+                        [
+                            resp.query,
+                            scored.classification.value,
+                            scored.weighted_score,
+                            scored.result.get("title", ""),
+                            scored.result.get("content", "")[:200],
+                            scored.result.get("source_url", ""),
+                            scored.validation.summary,
+                        ]
+                    )
             return output.getvalue()
 
         return ""
@@ -549,9 +570,7 @@ class OpenSiftEngine:
             return []
 
         # Prefer adapter.search_papers() for academic adapters
-        use_paper_path = hasattr(adapter, "search_papers") and callable(
-            adapter.search_papers
-        )
+        use_paper_path = hasattr(adapter, "search_papers") and callable(adapter.search_papers)
 
         if use_paper_path:
             tasks = [
@@ -559,10 +578,7 @@ class OpenSiftEngine:
                 for query in search_queries
             ]
         else:
-            tasks = [
-                adapter.search_and_normalize(query, request.options)
-                for query in search_queries
-            ]
+            tasks = [adapter.search_and_normalize(query, request.options) for query in search_queries]
 
         raw_results = await asyncio.gather(*tasks, return_exceptions=True)
 
