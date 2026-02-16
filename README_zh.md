@@ -1,6 +1,18 @@
-# OpenSift
+<p align="center">
+  <img src="docs/opensift-banner.png" alt="OpenSift Banner" width="800" />
+</p>
 
-**[English](README.md) | [中文](README_zh.md)**
+<p align="center">
+  <a href="https://github.com/opensift/opensift/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11%2B-blue.svg" alt="Python 3.11+"></a>
+  <a href="https://github.com/opensift/opensift"><img src="https://img.shields.io/badge/version-0.1.0-green.svg" alt="Version"></a>
+  <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff"></a>
+  <a href="https://github.com/opensift/opensift"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
+</p>
+
+<p align="center">
+  <b><a href="README.md">English</a> | <a href="README_zh.md">中文</a></b>
+</p>
 
 **让现有搜索系统快速接入 AI 能力的开源增强层。**
 
