@@ -35,6 +35,10 @@ router = APIRouter()
         "- Feeding generated queries into your own search pipeline\n"
         "- Pre-computing criteria for batch or incremental workflows"
     ),
+    responses={
+        422: {"description": "Validation error — invalid request body"},
+        500: {"description": "Internal server error — plan processing failed"},
+    },
 )
 async def plan(
     request: SearchRequest,

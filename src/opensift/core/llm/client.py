@@ -1,13 +1,14 @@
-"""LLM Client — OpenAI-compatible wrapper for model calls.
+"""WisModel Client — wrapper for WisModel API calls.
 
-Supports any OpenAI-compatible API endpoint (OpenAI, WisModel, vLLM, Ollama, etc.)
-with both streaming and non-streaming modes.
+Communicates with the WisModel API (OpenAI-compatible endpoint) for both
+query planning and result verification tasks.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import TYPE_CHECKING, Any
 
 from openai import AsyncOpenAI
@@ -33,22 +34,15 @@ def _diagnose_api_error(e: Any, base_url: str, model: str) -> str:
     if code == 403:
         return (
             f"Permission denied (HTTP 403): API key is valid but does NOT have access "
-            f"to this resource / model.\n"
-            f"  → API key works for other resources (e.g. ScholarSearch) but is "
-            f"forbidden for the LLM endpoint.\n"
+            f"to WisModel.\n"
+            f"  → API key may work for other resources (e.g. ScholarSearch) but is "
+            f"forbidden for the WisModel endpoint.\n"
             f"  → Endpoint: {base_url}/chat/completions\n"
             f"  → Model: {model}\n"
             f"  → Inner code: {inner_code}\n"
             f"  Fix options:\n"
             f"    1) Request WisModel access for this API key from the API Hub admin.\n"
-            f"    2) Use a different API key that has WisModel permissions.\n"
-            f"    3) Switch to an alternative LLM provider by editing .env:\n"
-            f"       OPENSIFT_AI__PROVIDER=openai\n"
-            f"       OPENSIFT_AI__API_KEY=sk-your-openai-key\n"
-            f"       OPENSIFT_AI__BASE_URL=https://api.openai.com/v1\n"
-            f"       OPENSIFT_AI__MODEL_PLANNER=gpt-4o-mini\n"
-            f"       OPENSIFT_AI__MODEL_VERIFIER=gpt-4o-mini\n"
-            f"    4) Use a local LLM (Ollama / vLLM) — see opensift-config.example.yaml"
+            f"    2) Use a different API key that has WisModel permissions."
         )
     if code == 404:
         return (
@@ -84,10 +78,9 @@ class LLMClient:
         )
         masked_key = settings.api_key[:8] + "..." + settings.api_key[-4:] if len(settings.api_key) > 12 else "***"
         logger.info(
-            "LLM client created: base_url=%s, api_key=%s, provider=%s",
+            "WisModel client created: base_url=%s, api_key=%s",
             settings.base_url,
             masked_key,
-            settings.provider,
         )
 
     async def verify_connection(self, model: str | None = None) -> bool:
@@ -137,8 +130,13 @@ class LLMClient:
         model: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        max_retries: int = 1,
     ) -> dict[str, Any]:
         """Send a chat completion request and parse the JSON response.
+
+        If the LLM returns malformed JSON, attempts automatic repair.
+        If repair fails, retries the request up to *max_retries* times with
+        ``temperature=0`` to encourage deterministic output.
 
         Args:
             system_prompt: System message content.
@@ -146,12 +144,13 @@ class LLMClient:
             model: Model name override (defaults to settings).
             temperature: Temperature override.
             max_tokens: Max tokens override.
+            max_retries: Number of retry attempts after JSON parse failure.
 
         Returns:
             Parsed JSON dict from the model response.
 
         Raises:
-            LLMError: If the model call or JSON parsing fails.
+            LLMError: If the model call or JSON parsing fails after all retries.
         """
         model = model or self._settings.model_planner
         temperature = temperature if temperature is not None else self._settings.temperature
@@ -169,55 +168,73 @@ class LLMClient:
             len(user_prompt),
         )
 
-        try:
-            response = await self._client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=temperature,
-                max_tokens=max_tokens,
-                stream=False,
-            )
+        last_error: Exception | None = None
+        for attempt in range(1 + max_retries):
+            try:
+                cur_temp = temperature if attempt == 0 else 0.0
+                response = await self._client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=cur_temp,
+                    max_tokens=max_tokens,
+                    stream=False,
+                )
 
-            content = response.choices[0].message.content
-            if content is None:
-                raise LLMError("Model returned empty content")
+                content = response.choices[0].message.content
+                if content is None:
+                    raise LLMError("Model returned empty content")
 
-            logger.info(
-                "LLM chat_json response OK: model=%s, usage=%s, content_len=%d",
-                response.model,
-                response.usage.model_dump() if response.usage else "N/A",
-                len(content),
-            )
-            logger.debug("LLM raw response: %s", content[:500])
+                logger.info(
+                    "LLM chat_json response OK: model=%s, usage=%s, content_len=%d, attempt=%d",
+                    response.model,
+                    response.usage.model_dump() if response.usage else "N/A",
+                    len(content),
+                    attempt + 1,
+                )
+                logger.debug("LLM raw response: %s", content[:500])
 
-            # Strip markdown code fences if present
-            content = self._strip_code_fences(content)
+                content = self._strip_code_fences(content)
 
-            return json.loads(content)
+                try:
+                    return json.loads(content)
+                except json.JSONDecodeError:
+                    repaired = self._repair_json(content)
+                    if repaired is not None:
+                        logger.warning(
+                            "LLM returned malformed JSON (attempt %d), auto-repaired successfully",
+                            attempt + 1,
+                        )
+                        return repaired
+                    logger.warning(
+                        "LLM returned malformed JSON (attempt %d/%d), repair failed. Content preview: %s",
+                        attempt + 1,
+                        1 + max_retries,
+                        content[:300],
+                    )
+                    last_error = LLMError("Invalid JSON from LLM after repair attempt")
 
-        except json.JSONDecodeError as e:
-            logger.error("Failed to parse LLM JSON response: %s", e)
-            raise LLMError(f"Invalid JSON from LLM: {e}") from e
-        except LLMError:
-            raise
-        except Exception as e:
-            from openai import APIStatusError
+            except LLMError:
+                raise
+            except Exception as e:
+                from openai import APIStatusError
 
-            if isinstance(e, APIStatusError):
-                diagnosis = _diagnose_api_error(e, self._settings.base_url, model)
-                logger.error("LLM API error:\n%s", diagnosis)
-                raise LLMError(f"LLM API error (HTTP {e.status_code}): {diagnosis}") from e
-            logger.error(
-                "LLM call FAILED: url=%s, model=%s, error_type=%s, error=%s",
-                full_url,
-                model,
-                type(e).__name__,
-                e,
-            )
-            raise LLMError(f"LLM call failed: {e}") from e
+                if isinstance(e, APIStatusError):
+                    diagnosis = _diagnose_api_error(e, self._settings.base_url, model)
+                    logger.error("LLM API error:\n%s", diagnosis)
+                    raise LLMError(f"LLM API error (HTTP {e.status_code}): {diagnosis}") from e
+                logger.error(
+                    "LLM call FAILED: url=%s, model=%s, error_type=%s, error=%s",
+                    full_url,
+                    model,
+                    type(e).__name__,
+                    e,
+                )
+                raise LLMError(f"LLM call failed: {e}") from e
+
+        raise last_error or LLMError("chat_json failed after all retries")
 
     async def chat_raw(
         self,
@@ -310,14 +327,92 @@ class LLMClient:
         """
         text = text.strip()
         if text.startswith("```"):
-            # Remove opening fence (possibly with language tag)
             first_newline = text.find("\n")
             if first_newline != -1:
                 text = text[first_newline + 1 :]
-            # Remove closing fence
             if text.endswith("```"):
                 text = text[:-3]
         return text.strip()
+
+    @staticmethod
+    def _repair_json(text: str) -> dict[str, Any] | None:
+        """Attempt to repair common LLM JSON formatting issues.
+
+        Handles:
+        - Trailing commas before ``}`` or ``]``
+        - Missing commas between values / object entries
+        - Unescaped newlines inside string values
+        - Truncated JSON (unclosed braces/brackets)
+        - Leading/trailing non-JSON text surrounding the object
+
+        Returns the parsed dict on success, or ``None`` if repair fails.
+        """
+        # Extract the outermost JSON object if surrounded by text
+        brace_start = text.find("{")
+        if brace_start == -1:
+            return None
+        text = text[brace_start:]
+
+        # Close any unclosed braces / brackets
+        open_b = text.count("{") - text.count("}")
+        open_sq = text.count("[") - text.count("]")
+        if open_b > 0 or open_sq > 0:
+            text = text.rstrip().rstrip(",")
+            text += "]" * max(open_sq, 0)
+            text += "}" * max(open_b, 0)
+
+        # Remove trailing commas before } or ]
+        text = re.sub(r",\s*([}\]])", r"\1", text)
+
+        # Replace unescaped control characters inside strings
+        text = text.replace("\t", "\\t")
+
+        # Try parsing after basic fixes
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+
+        # Missing commas: }" or ]" or ""{  →  insert comma
+        text = re.sub(r'("\s*)\n(\s*")', r"\1,\n\2", text)
+        text = re.sub(r"(})\s*({)", r"\1,\2", text)
+        text = re.sub(r"(])\s*(\[)", r"\1,\2", text)
+        text = re.sub(r'(")\s*({)', r"\1,\2", text)
+        text = re.sub(r"(})\s*(\")", r"\1,\2", text)
+
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+
+        # Replace unescaped literal newlines inside JSON strings
+        def _escape_newlines_in_strings(s: str) -> str:
+            result: list[str] = []
+            in_string = False
+            escaped = False
+            for ch in s:
+                if escaped:
+                    result.append(ch)
+                    escaped = False
+                    continue
+                if ch == "\\":
+                    escaped = True
+                    result.append(ch)
+                    continue
+                if ch == '"':
+                    in_string = not in_string
+                if in_string and ch == "\n":
+                    result.append("\\n")
+                    continue
+                result.append(ch)
+            return "".join(result)
+
+        text = _escape_newlines_in_strings(text)
+
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            return None
 
 
 class LLMError(Exception):

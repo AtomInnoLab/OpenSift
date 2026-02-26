@@ -3,11 +3,13 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/opensift/opensift/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
+  <a href="https://github.com/AtomInnoLab/OpenSift/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11%2B-blue.svg" alt="Python 3.11+"></a>
-  <a href="https://github.com/opensift/opensift"><img src="https://img.shields.io/badge/version-0.1.0-green.svg" alt="Version"></a>
+  <a href="https://github.com/AtomInnoLab/OpenSift"><img src="https://img.shields.io/badge/version-0.1.0-green.svg" alt="Version"></a>
   <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff"></a>
-  <a href="https://github.com/opensift/opensift"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
+  <a href="https://github.com/AtomInnoLab/OpenSift"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
+  <a href="https://arxiv.org/abs/2512.06879"><img src="https://img.shields.io/badge/arXiv-2512.06879-b31b1b.svg" alt="arXiv"></a>
+  <a href="https://wispaper.ai"><img src="https://img.shields.io/badge/Origin-WisPaper-8A2BE2.svg" alt="WisPaper"></a>
 </p>
 
 <p align="center">
@@ -15,6 +17,8 @@
 </p>
 
 **让现有搜索系统快速接入 AI 能力的开源增强层。**
+
+OpenSift 脱胎于 [WisPaper](https://wispaper.ai) —— 由复旦 NLP 实验室和 WisPaper.ai 联合打造的 AI 学术搜索平台。其核心的「搜索-验证」范式（AI 查询规划 + LLM 结果验证）已在论文 [*WisPaper: Your AI Scholar Search Engine*](https://arxiv.org/abs/2512.06879) 中详细阐述。OpenSift 将这一经过验证的范式提取为**通用的开源中间件**，可以接入任何搜索后端，让每一个搜索引擎都能获得同样的 AI 能力。
 
 OpenSift 不是一个搜索引擎，也不是问答系统。它是一个轻量级的 AI 中间层，接入你现有的搜索后端（Elasticsearch、OpenSearch、Solr、MeiliSearch、Wikipedia、AtomWalker 学术搜索、或任何自定义 API），为其注入两项核心 AI 能力：
 
@@ -45,7 +49,7 @@ OpenSift 不是一个搜索引擎，也不是问答系统。它是一个轻量�
 ### 安装
 
 ```bash
-git clone https://github.com/opensift/opensift.git
+git clone https://github.com/AtomInnoLab/OpenSift.git
 cd opensift
 
 # 开发环境
@@ -61,7 +65,7 @@ poetry install
 cp opensift-config.example.yaml opensift-config.yaml
 cp .env.example .env
 
-# 配置 WisModel API Key（默认模型，专门训练了 Planning 和 Verification 能力）
+# 配置 WisModel API Key（唯一支持的模型）
 # 编辑 .env 文件设置: OPENSIFT_AI__API_KEY=your-wismodel-key
 
 # 配置搜索后端 (默认 AtomWalker 学术搜索)
@@ -134,8 +138,21 @@ curl -X POST http://localhost:8080/v1/search \
       }
     ]
   },
-  "perfect_results": [ ... ],
+  "perfect_results": [
+    {
+      "result": {
+        "source_adapter": "wikipedia",
+        "title": "基于CNN的太阳能即时预报",
+        "content": "...",
+        "source_url": "https://..."
+      },
+      "validation": { "criteria_assessment": [...], "summary": "..." },
+      "classification": "perfect",
+      "weighted_score": 0.95
+    }
+  ],
   "partial_results": [ ... ],
+  "rejected_results": [ ... ],
   "rejected_count": 5,
   "total_scanned": 20
 }
@@ -143,7 +160,14 @@ curl -X POST http://localhost:8080/v1/search \
 
 ### 流式模式（SSE）
 
-添加 `"stream": true` 即可开启流式输出。验证完一条结果立即推送，无需等待全部完成：
+添加 `"stream": true` 即可开启流式输出。管线各阶段以独立的 SSE 事件推送，客户端可实时渲染进度：
+
+```
+管线：  criteria → search_complete → result × N → done
+                                                  (或 error)
+```
+
+**请求：**
 
 ```bash
 curl -N -X POST http://localhost:8080/v1/search \
@@ -153,37 +177,130 @@ curl -N -X POST http://localhost:8080/v1/search \
     "options": {
       "max_results": 10,
       "verify": true,
-      "stream": true
+      "stream": true,
+      "adapters": ["wikipedia"]
     }
   }'
 ```
 
-**SSE 事件流示例：**
+**SSE 事件流（完整示例）：**
 
 ```
 event: criteria
-data: {"request_id":"req_a1b2c3d4e5f6","query":"...","criteria_result":{...}}
+data: {"request_id":"req_a1b2c3d4e5f6","query":"有哪些关于太阳能即时预报的深度学习论文？","criteria_result":{"search_queries":["\"solar nowcasting\" deep learning","太阳能 即时预报 深度学习"],"criteria":[{"criterion_id":"c1","type":"task","name":"太阳能即时预报","description":"论文必须涉及太阳辐照度即时预报","weight":0.6},{"criterion_id":"c2","type":"method","name":"深度学习方法","description":"论文必须采用深度学习或神经网络方法","weight":0.4}]}}
+
+event: search_complete
+data: {"total_results":15,"search_queries_count":2,"results":[{"source_adapter":"wikipedia","title":"Solar nowcasting","content":"Solar nowcasting refers to...","source_url":"https://en.wikipedia.org/wiki/Solar_nowcasting"},{"source_adapter":"wikipedia","title":"Deep learning for weather prediction","content":"...","source_url":"https://..."}]}
 
 event: result
-data: {"index":1,"total":10,"scored_result":{"result":{...},"validation":{...},"classification":"perfect","weighted_score":0.95}}
+data: {"index":1,"total":15,"scored_result":{"result":{"source_adapter":"wikipedia","title":"Solar nowcasting","content":"...","source_url":"https://..."},"validation":{"criteria_assessment":[{"criterion_id":"c1","assessment":"support","explanation":"直接涉及太阳能即时预报"},{"criterion_id":"c2","assessment":"support","explanation":"讨论了基于 CNN 的方法"}],"summary":"高度相关的太阳能即时预报深度学习论文"},"classification":"perfect","weighted_score":0.95}}
 
 event: result
-data: {"index":2,"total":10,"scored_result":{"result":{...},"validation":{...},"classification":"partial","weighted_score":0.5}}
+data: {"index":2,"total":15,"scored_result":{"result":{"source_adapter":"wikipedia","title":"天气预报","content":"...","source_url":"https://..."},"validation":{"criteria_assessment":[{"criterion_id":"c1","assessment":"somewhat_support","explanation":"提及太阳能但侧重一般气象"},{"criterion_id":"c2","assessment":"support","explanation":"使用了神经网络方法"}],"summary":"部分相关 — 通用天气预报"},"classification":"partial","weighted_score":0.5}}
 
 ...
 
 event: done
-data: {"request_id":"req_a1b2c3d4e5f6","status":"completed","total_scanned":10,"perfect_count":3,"partial_count":4,"rejected_count":3,"processing_time_ms":5200}
+data: {"request_id":"req_a1b2c3d4e5f6","status":"completed","total_scanned":15,"perfect_count":3,"partial_count":4,"rejected_count":8,"processing_time_ms":5200}
 ```
 
 **事件类型说明：**
 
-| 事件 | 触发时机 | 载荷 |
-|------|---------|------|
-| `criteria` | 查询规划完成 | `request_id`, `query`, `criteria_result` |
-| `result` | 每条结果验证 + 分类完成 | `index`, `total`, `scored_result` |
-| `done` | 全部完成 | 统计汇总（各分类计数、耗时） |
-| `error` | 发生错误 | `error` 错误信息 |
+| 事件 | 发送次数 | 载荷字段 | 说明 |
+|------|---------|---------|------|
+| `criteria` | 1 次 | `request_id`, `query`, `criteria_result` | 规划完成 — 包含生成的搜索子查询和筛选条件 |
+| `search_complete` | 1 次 | `total_results`, `search_queries_count`, `results` | 搜索完成 — `results` 包含所有原始搜索结果（验证前），每条带 `source_adapter` |
+| `result` | N 次 | `index`, `total`, `scored_result` 或 `raw_result` | 单条结果验证完成 — classify=true 时为 `scored_result`（含 `classification` + `weighted_score`），classify=false 时为 `raw_result` |
+| `done` | 1 次 | `request_id`, `status`, `total_scanned`, `perfect_count`, `partial_count`, `rejected_count`, `processing_time_ms` | 全部完成 — 最终统计汇总 |
+| `error` | 0–1 次 | `request_id`, `error`, `processing_time_ms` | 不可恢复错误 — 包含错误信息 |
+
+**客户端处理（JavaScript）：**
+
+```javascript
+const resp = await fetch("/v1/search", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    query: "太阳能即时预报的深度学习方法",
+    options: { stream: true, max_results: 10 }
+  })
+});
+
+const reader = resp.body.getReader();
+const decoder = new TextDecoder();
+let buffer = "";
+
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+
+  buffer += decoder.decode(value, { stream: true });
+  const parts = buffer.split("\n\n");
+  buffer = parts.pop();
+
+  for (const part of parts) {
+    let eventType = "", dataStr = "";
+    for (const line of part.split("\n")) {
+      if (line.startsWith("event:")) eventType = line.slice(6).trim();
+      else if (line.startsWith("data:")) dataStr = line.slice(5).trim();
+    }
+    if (!eventType || !dataStr) continue;
+    const data = JSON.parse(dataStr);
+
+    switch (eventType) {
+      case "criteria":
+        console.log("筛选条件:", data.criteria_result);
+        break;
+      case "search_complete":
+        console.log(`找到 ${data.total_results} 条结果，开始验证...`);
+        break;
+      case "result":
+        const r = data.scored_result;
+        console.log(`[${r.result.source_adapter}] [${r.classification}] ${r.result.title}`);
+        break;
+      case "done":
+        console.log(`完成: ${data.perfect_count} 完美, ${data.partial_count} 部分匹配, 耗时 ${data.processing_time_ms}ms`);
+        break;
+      case "error":
+        console.error("错误:", data.error);
+        break;
+    }
+  }
+}
+```
+
+**Python SDK（同步）：**
+
+```python
+from opensift.client import OpenSiftClient
+
+client = OpenSiftClient("http://localhost:8080")
+for event in client.search_stream("太阳能即时预报的深度学习方法"):
+    evt = event["event"]
+    data = event["data"]
+
+    if evt == "criteria":
+        print(f"搜索子查询: {data['criteria_result']['search_queries']}")
+    elif evt == "search_complete":
+        print(f"搜索完成: 共 {data['total_results']} 条结果")
+    elif evt == "result":
+        r = data["scored_result"]
+        print(f"  [{r['result']['source_adapter']}] [{r['classification']}] {r['result']['title']}")
+    elif evt == "done":
+        print(f"完成: {data['perfect_count']}完美 / {data['partial_count']}部分 / {data['rejected_count']}拒绝, 耗时 {data['processing_time_ms']}ms")
+```
+
+**Python SDK（异步）：**
+
+```python
+from opensift.client import AsyncOpenSiftClient
+
+async with AsyncOpenSiftClient("http://localhost:8080") as client:
+    async for event in client.search_stream("太阳能即时预报"):
+        if event["event"] == "result":
+            r = event["data"]["scored_result"]
+            print(f"[{r['result']['source_adapter']}] {r['result']['title']}")
+```
 
 ### 独立查询规划（Standalone Plan）
 
@@ -256,7 +373,7 @@ curl -X POST http://localhost:8080/v1/search \
   "criteria_result": { ... },
   "raw_results": [
     {
-      "result": { "title": "...", "content": "..." },
+      "result": { "source_adapter": "wikipedia", "title": "...", "content": "..." },
       "validation": {
         "criteria_assessment": [
           { "criterion_id": "c1", "assessment": "support", "explanation": "..." }
@@ -267,6 +384,7 @@ curl -X POST http://localhost:8080/v1/search \
   ],
   "perfect_results": [],
   "partial_results": [],
+  "rejected_results": [],
   "total_scanned": 10
 }
 ```
@@ -392,6 +510,21 @@ search:
       index_pattern: "my_collection"
 ```
 
+### 结果字段
+
+每条搜索结果中包含 `source_adapter` 字段，标识该结果来自哪个 adapter：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `source_adapter` | `string` | 返回该结果的搜索适配器名称（如 `"wikipedia"`, `"atomwalker"`） |
+| `result_type` | `string` | 结果类型，用于选择验证 prompt 模板（`"paper"`, `"generic"`） |
+| `title` | `string` | 标题 |
+| `content` | `string` | 正文内容（摘要、描述等） |
+| `source_url` | `string` | 来源链接 |
+| `fields` | `object` | 其他领域特定的元数据 |
+
+`source_adapter` 字段出现在 `perfect_results`、`partial_results`、`rejected_results`、`raw_results` 和流式 `result` 事件中。当多个 adapter 同时激活时，可用此字段区分结果来源。
+
 ## Python SDK
 
 OpenSift 自带 Python 客户端库，支持同步和异步两种模式：
@@ -409,13 +542,13 @@ print(plan["criteria_result"]["criteria"])
 # 完整模式 — 搜索 + 验证全流程
 response = client.search("太阳能即时预报的深度学习方法")
 for r in response["perfect_results"]:
-    print(r["result"]["title"], r["classification"])
+    print(f"[{r['result']['source_adapter']}] {r['result']['title']} — {r['classification']}")
 
 # 流式模式 — 验证完一条返回一条
 for event in client.search_stream("solar nowcasting deep learning"):
     if event["event"] == "result":
         scored = event["data"]["scored_result"]
-        print(f"[{scored['classification']}] {scored['result']['title']}")
+        print(f"[{scored['result']['source_adapter']}] [{scored['classification']}] {scored['result']['title']}")
 
 # 批量搜索 + 导出 CSV
 batch = client.batch_search(
@@ -444,38 +577,38 @@ async with AsyncOpenSiftClient("http://localhost:8080") as client:
         print(event)
 ```
 
-## 本地 LLM 支持
+## WisModel — 专为搜索验证训练的 AI 模型
 
-OpenSift 的 LLM 客户端兼容所有 OpenAI API 格式的服务，因此可以直接使用 Ollama、vLLM 等本地部署的模型：
+OpenSift 仅支持 [WisModel](https://arxiv.org/abs/2512.06879)，一个专门为搜索验证范式的两大核心任务训练的模型：**问题理解与验证条件生成**和**论文-条件匹配验证**。WisModel 在专家标注的 10 个学术领域数据（2,777 条查询、5,879 条验证条件）上，经过监督微调（SFT）+ 群组相对策略优化（GRPO）训练而成。
 
-**Ollama:**
+### 问题理解与验证条件生成
 
-```bash
-# 启动 Ollama
-ollama serve
-ollama pull qwen2.5:14b
+WisModel 在从自然语言查询生成搜索问句和筛选条件方面，显著超越所有基线模型（包括 GPT-5、GPT-4o、DeepSeek-V3.2）：
 
-# 配置 OpenSift
-OPENSIFT_AI__PROVIDER=local
-OPENSIFT_AI__API_KEY=ollama
-OPENSIFT_AI__BASE_URL=http://localhost:11434/v1
-OPENSIFT_AI__MODEL_PLANNER=qwen2.5:14b
-OPENSIFT_AI__MODEL_VERIFIER=qwen2.5:14b
-```
+| 模型 | 语义相似度 | ROUGE-1 | ROUGE-2 | ROUGE-L | BLEU | 长度比 |
+|------|:---:|:---:|:---:|:---:|:---:|:---:|
+| Qwen-Max | 78.1 | 43.2 | 23.1 | 35.8 | 11.8 | 168.9 |
+| GPT-4o | 91.3 | 64.0 | 39.4 | 52.6 | 21.5 | 142.2 |
+| GPT-5 | 87.0 | 53.8 | 27.6 | 41.8 | 13.2 | 163.3 |
+| GLM-4-Flash | 82.2 | 50.0 | 25.8 | 42.1 | 9.9 | 167.1 |
+| GLM-4.6 | 84.8 | 55.5 | 30.2 | 44.5 | 14.4 | 168.1 |
+| DeepSeek-V3.2-Exp | 90.2 | 59.3 | 32.4 | 48.0 | 14.4 | 153.5 |
+| **WisModel** | **94.8** | **74.9** | **54.4** | **67.7** | **39.8** | **98.2** |
 
-**vLLM:**
+### 论文-条件匹配验证
 
-```bash
-# 启动 vLLM
-vllm serve Qwen/Qwen2.5-14B-Instruct --port 8000
+WisModel 以 93.70% 的总体准确率遥遥领先，超出第二名（Gemini3-Pro，73.23%）20 个百分点以上。其优势在最难的「部分支持（somewhat support）」类别上尤为突出 —— 基线模型仅 15.9%–45.0%，WisModel 达到 91.82%：
 
-# 配置 OpenSift
-OPENSIFT_AI__PROVIDER=local
-OPENSIFT_AI__API_KEY=token-abc123
-OPENSIFT_AI__BASE_URL=http://localhost:8000/v1
-OPENSIFT_AI__MODEL_PLANNER=Qwen/Qwen2.5-14B-Instruct
-OPENSIFT_AI__MODEL_VERIFIER=Qwen/Qwen2.5-14B-Instruct
-```
+| 模型 | 信息不足 | 拒绝 | 部分支持 | 支持 | 总体准确率 |
+|------|:---:|:---:|:---:|:---:|:---:|
+| GPT-5.1 | 64.30 | 63.10 | 31.40 | 85.40 | 70.81 |
+| Claude-Sonnet-4.5 | 46.00 | 66.50 | 33.30 | 87.00 | 70.62 |
+| Qwen3-Max | 40.80 | 72.00 | 44.20 | 87.20 | 72.82 |
+| DeepSeek-V3.2 | 57.90 | 49.20 | 45.00 | 87.00 | 66.82 |
+| Gemini3-Pro | 67.40 | 66.80 | 15.90 | 91.10 | 73.23 |
+| **WisModel** | **90.64** | **94.54** | **91.82** | **94.38** | **93.70** |
+
+> WisModel 通过 [WisPaper API Hub](https://wispaper.ai) 提供服务。请联系团队获取 API Key。
 
 ## Web UI 调试面板
 
@@ -502,13 +635,57 @@ http://localhost:8080/debug
 ## 开发
 
 ```bash
-make test          # 运行测试
+make test          # 运行全部测试
+make test-unit     # 仅运行单元测试
 make lint          # 代码检查 (ruff)
 make lint-fix      # 自动修复
 make format        # 代码格式化
 make check         # 完整 CI 检查 (lint + format + typecheck + test)
 make clean         # 清理构建产物
 ```
+
+### 集成测试
+
+集成测试通过 Docker 启动真实的搜索后端来测试每个适配器。支持按需测试单个适配器，无需启动全部容器。
+
+**测试单个适配器**（仅启动对应的 Docker 容器）：
+
+```bash
+make test-es          # Elasticsearch
+make test-opensearch  # OpenSearch
+make test-solr        # Solr
+make test-meili       # MeiliSearch
+make test-wikipedia   # Wikipedia（无需 Docker）
+
+# 通用写法：
+make test-adapter ADAPTER=elasticsearch
+```
+
+**测试全部适配器：**
+
+```bash
+make test-backends-up    # 启动全部 4 个 Docker 后端
+make test-integration    # 运行全部集成测试
+make test-backends-down  # 停止并移除容器
+```
+
+也可以直接使用 pytest marker：
+
+```bash
+# 单个适配器
+pytest tests/integration/ -m elasticsearch
+
+# 多个适配器
+pytest tests/integration/ -m "solr or meilisearch"
+```
+
+| 适配器 | Docker 镜像 | 端口 | Marker |
+|--------|------------|------|--------|
+| Elasticsearch | `elasticsearch:8.17.0` | 9200 | `elasticsearch` |
+| OpenSearch | `opensearch:2.18.0` | 9201 | `opensearch` |
+| Solr | `solr:9.7` | 8983 | `solr` |
+| MeiliSearch | `meilisearch:v1.12` | 7700 | `meilisearch` |
+| Wikipedia | *（公共 API）* | — | `wikipedia` |
 
 ## 配置说明
 
@@ -522,10 +699,10 @@ OpenSift 支持三层配置（优先级从高到低）：
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `OPENSIFT_AI__API_KEY` | WisModel / LLM API Key | — |
-| `OPENSIFT_AI__BASE_URL` | LLM API 地址 (OpenAI 兼容) | WisModel endpoint |
-| `OPENSIFT_AI__MODEL_PLANNER` | 查询规划模型 | `WisModel-20251110` |
-| `OPENSIFT_AI__MODEL_VERIFIER` | 结果验证模型 | `WisModel-20251110` |
+| `OPENSIFT_AI__API_KEY` | WisModel API Key | — |
+| `OPENSIFT_AI__BASE_URL` | WisModel API 地址 | WisPaper API Hub |
+| `OPENSIFT_AI__MODEL_PLANNER` | WisModel 规划版本 | `WisModel-20251110` |
+| `OPENSIFT_AI__MODEL_VERIFIER` | WisModel 验证版本 | `WisModel-20251110` |
 | `OPENSIFT_SEARCH__DEFAULT_ADAPTER` | 默认搜索后端 | `atomwalker` |
 
 ## Docker
@@ -549,9 +726,22 @@ docker-compose -f deployments/docker/docker-compose.dev.yml up
 - [x] 流式输出 (SSE)
 - [x] Python SDK (同步 + 异步)
 - [x] 批量搜索与导出 (CSV / JSON)
-- [x] 本地 LLM 支持 (Ollama, vLLM)
 - [x] Web UI 调试面板
 - [x] 更多搜索后端适配器 (OpenSearch, Solr, MeiliSearch, Wikipedia)
+- [x] 全适配器 Docker 集成测试
+
+## 引用
+
+如果你在研究中使用了 OpenSift 或搜索验证范式，请引用 WisPaper 论文：
+
+```bibtex
+@article{ju2025wispaper,
+  title={WisPaper: Your AI Scholar Search Engine},
+  author={Li Ju and Jun Zhao and Mingxu Chai and Ziyu Shen and Xiangyang Wang and Yage Geng and Chunchun Ma and Hao Peng and Guangbin Li and Tao Li and Chengyong Liao and Fu Wang and Xiaolong Wang and Junshen Chen and Rui Gong and Shijia Liang and Feiyan Li and Ming Zhang and Kexin Tan and Jujie Ye and Zhiheng Xi and Shihan Dou and Tao Gui and Yuankai Ying and Yang Shi and Yue Zhang and Qi Zhang},
+  journal={arXiv preprint arXiv:2512.06879},
+  year={2025}
+}
+```
 
 ## License
 
@@ -559,4 +749,4 @@ docker-compose -f deployments/docker/docker-compose.dev.yml up
 
 ---
 
-**OpenSift** — 为现有搜索系统注入 AI 智能。
+**OpenSift** — 脱胎于 [WisPaper](https://wispaper.ai)，为每一个搜索引擎而生。为现有搜索系统注入 AI 智能。

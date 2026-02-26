@@ -36,9 +36,15 @@ router = APIRouter()
         "**Output modes:**\n"
         "- `stream: false` (default) — Returns a single JSON `SearchResponse` "
         "after all results are verified.\n"
-        "- `stream: true` — Returns an SSE event stream (`text/event-stream`). "
-        "Events: `criteria` (planning result), `result` (each verified result), "
-        "`done` (final summary), `error`."
+        "- `stream: true` — Returns an SSE event stream (`text/event-stream`).\n\n"
+        "**SSE event types (streaming mode):**\n"
+        "| Event | Emitted | Description |\n"
+        "|-------|---------|-------------|\n"
+        "| `criteria` | once | Planning complete — contains `request_id`, `query`, `criteria_result` |\n"
+        "| `search_complete` | once | Search finished — contains `total_results`, `search_queries_count`, and full `results` list |\n"
+        "| `result` | per result | One result verified — contains `index`, `total`, and `scored_result` (classify=true) or `raw_result` (classify=false) |\n"
+        "| `done` | once | All done — contains final counts (`perfect_count`, `partial_count`, `rejected_count`) and `processing_time_ms` |\n"
+        "| `error` | 0–1 | Unrecoverable error — contains `error` message |"
     ),
     responses={
         200: {
@@ -48,6 +54,8 @@ router = APIRouter()
                 "text/event-stream": {},
             },
         },
+        422: {"description": "Validation error — invalid request body (missing query, bad options, etc.)"},
+        500: {"description": "Internal server error — search processing failed"},
     },
 )
 async def search(

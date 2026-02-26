@@ -37,15 +37,15 @@ from opensift.models.query import SearchOptions
 
 logger = logging.getLogger(__name__)
 
-_USER_AGENT = "OpenSift/0.1 (https://github.com/opensift/opensift; opensift@example.com)"
+_USER_AGENT = "OpenSift/0.1 (https://github.com/AtomInnoLab/OpenSift; opensift@example.com)"
 
 
 class WikipediaAdapter(SearchAdapter):
     """Search adapter for Wikipedia via the ``wikipedia-api`` library.
 
-    Since Wikipedia doesn't expose a traditional full-text search API,
-    this adapter uses Wikipedia's built-in search generator to discover
-    pages matching a query, then fetches their summaries.
+    Uses MediaWiki's full-text search API (``action=query&list=search``,
+    powered by CirrusSearch/Elasticsearch) to find relevant pages, then
+    fetches their summaries via ``wikipedia-api``.
 
     Args:
         language: Wikipedia language code (e.g. ``"en"``, ``"zh"``, ``"de"``).
@@ -104,8 +104,8 @@ class WikipediaAdapter(SearchAdapter):
     async def search(self, query: str, options: SearchOptions) -> RawResults:
         """Search Wikipedia for articles matching *query*.
 
-        Uses the MediaWiki ``opensearch`` API endpoint to find matching
-        page titles, then fetches summary + metadata for each page.
+        Uses the MediaWiki full-text search API (``action=query&list=search``)
+        to find relevant pages, then fetches summary + metadata for each page.
 
         Args:
             query: The search query string.
@@ -155,34 +155,37 @@ class WikipediaAdapter(SearchAdapter):
     def _search_sync(self, query: str, max_results: int) -> list[dict[str, Any]]:
         """Synchronous search implementation (runs in executor).
 
-        Uses MediaWiki opensearch API to find page titles, then fetches
-        each page's summary and metadata via wikipedia-api.
+        Uses MediaWiki full-text search API (action=query&list=search) to find
+        relevant pages ranked by content relevance, then fetches each page's
+        summary and metadata via wikipedia-api.
         """
         import json as json_mod
         import urllib.parse
         import urllib.request
 
-        # Step 1: Use MediaWiki opensearch to get page titles
         encoded_query = urllib.parse.quote(query)
         search_url = (
             f"https://{self._language}.wikipedia.org/w/api.php"
-            f"?action=opensearch&search={encoded_query}"
-            f"&limit={max_results}&namespace=0&format=json"
+            f"?action=query&list=search"
+            f"&srsearch={encoded_query}"
+            f"&srlimit={max_results}"
+            f"&srprop=snippet|size|wordcount|timestamp"
+            f"&srnamespace=0"
+            f"&format=json"
         )
         req = urllib.request.Request(search_url, headers={"User-Agent": self._user_agent})
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json_mod.loads(resp.read().decode("utf-8"))
 
-        # opensearch returns: [query, [titles], [descriptions], [urls]]
-        if len(data) < 4:
+        search_results = data.get("query", {}).get("search", [])
+        if not search_results:
             return []
 
-        titles: list[str] = data[1]
-        urls: list[str] = data[3]
+        total_results = len(search_results)
 
-        # Step 2: Fetch each page via wikipedia-api for rich content
         documents: list[dict[str, Any]] = []
-        for i, title in enumerate(titles):
+        for rank, result in enumerate(search_results):
+            title = result.get("title", "")
             page = self._wiki.page(title)
             if not page.exists():
                 continue
@@ -191,24 +194,28 @@ class WikipediaAdapter(SearchAdapter):
             if len(summary) > self._max_chars:
                 summary = summary[: self._max_chars] + "…"
 
-            # Collect categories
             categories = [cat.replace("Category:", "") for cat in page.categories]
-
-            # Collect language links count
             langlinks_count = len(page.langlinks) if page.langlinks else 0
 
+            search_snippet = result.get("snippet", "")
+            relevance_score = round(1.0 - (rank / max(total_results, 1)), 4)
+
             doc: dict[str, Any] = {
-                "id": f"wiki_{self._language}_{page.pageid}"
-                if hasattr(page, "pageid")
-                else f"wiki_{self._language}_{i}",
+                "id": f"wiki_{self._language}_{result['pageid']}"
+                if "pageid" in result
+                else f"wiki_{self._language}_{rank}",
                 "title": page.title,
                 "summary": summary,
+                "search_snippet": search_snippet,
                 "full_url": page.fullurl,
                 "canonical_url": page.canonicalurl,
                 "language": self._language,
                 "categories": categories[:10],
                 "langlinks_count": langlinks_count,
-                "url": urls[i] if i < len(urls) else page.fullurl,
+                "word_count": result.get("wordcount", 0),
+                "last_edited": result.get("timestamp", ""),
+                "relevance_score": relevance_score,
+                "url": page.fullurl,
             }
             documents.append(doc)
 
@@ -259,23 +266,28 @@ class WikipediaAdapter(SearchAdapter):
         url = raw_result.get("url") or raw_result.get("full_url", "")
         categories = raw_result.get("categories", [])
         language = raw_result.get("language", self._language)
+        search_snippet = raw_result.get("search_snippet", "")
+
+        snippet = search_snippet or (summary[:200] if summary else None)
+        score = raw_result.get("relevance_score", 1.0)
 
         return StandardDocument(
             id=doc_id,
             title=title,
             content=summary,
-            snippet=summary[:200] if summary else None,
-            score=1.0,  # Wikipedia doesn't provide relevance scores
+            snippet=snippet,
+            score=score,
             metadata=DocumentMetadata(
                 source=f"wikipedia_{language}",
                 url=url,
-                published_date=None,
+                published_date=raw_result.get("last_edited") or None,
                 author=None,
                 language=language,
                 tags=categories,
                 extra={
                     "langlinks_count": raw_result.get("langlinks_count", 0),
                     "canonical_url": raw_result.get("canonical_url", ""),
+                    "word_count": raw_result.get("word_count", 0),
                 },
             ),
         )

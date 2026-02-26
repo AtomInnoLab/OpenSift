@@ -431,6 +431,43 @@ header h1 span { color: var(--accent); }
   transition: width 0.5s;
 }
 
+/* ═══════ Adapter Tag ═══════ */
+.adapter-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 3px;
+  background: var(--blue-bg);
+  color: var(--blue);
+}
+
+/* ═══════ Result Groups ═══════ */
+.result-group {
+  margin-bottom: 1.5rem;
+}
+.result-group-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+.result-group-title .toggle-hint {
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--text-dim);
+  margin-left: 0.4rem;
+}
+.result-group-rejected .result-group-body {
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+.result-group-rejected.collapsed .result-group-body {
+  display: none;
+}
+
 /* ═══════ Batch ═══════ */
 .batch-queries textarea {
   width: 100%;
@@ -544,6 +581,12 @@ header h1 span { color: var(--accent); }
       <div class="option-group">
         <label for="classifyOpt"><input type="checkbox" id="classifyOpt" checked /> Classify</label>
       </div>
+      <div class="option-group">
+        <label for="adapterSelect">Adapter</label>
+        <select id="adapterSelect" class="adapter-select">
+          <option value="">All adapters</option>
+        </select>
+      </div>
     </div>
   </div>
 
@@ -584,16 +627,24 @@ header h1 span { color: var(--accent); }
         <label for="streamMaxResults">Max results</label>
         <input type="number" id="streamMaxResults" value="10" min="1" max="100" style="width:60px" />
       </div>
+      <div class="option-group">
+        <label for="streamAdapterSelect">Adapter</label>
+        <select id="streamAdapterSelect" class="adapter-select">
+          <option value="">All adapters</option>
+        </select>
+      </div>
     </div>
   </div>
 
   <div class="pipeline" id="streamPipeline">
     <div class="stage" id="ss-plan"><div class="label">Planning</div><div class="time" id="ss-plan-time"></div></div>
+    <div class="stage" id="ss-search"><div class="label">Searching</div><div class="time" id="ss-search-time"></div></div>
     <div class="stage" id="ss-verify"><div class="label">Verifying</div><div class="time" id="ss-verify-time"></div></div>
     <div class="stage" id="ss-done"><div class="label">Done</div><div class="time" id="ss-done-time"></div></div>
   </div>
 
   <div id="streamCriteria" style="display:none"></div>
+  <div id="streamSearchResults" style="display:none"></div>
   <div id="streamProgress" style="display:none;margin-bottom:1rem;font-size:0.85rem;color:var(--text-muted)"></div>
   <div id="streamResults"></div>
 
@@ -650,6 +701,12 @@ header h1 span { color: var(--accent); }
         <input type="number" id="batchMax" value="5" min="1" max="100" style="width:60px" />
       </div>
       <div class="option-group">
+        <label for="batchAdapterSelect">Adapter</label>
+        <select id="batchAdapterSelect" class="adapter-select">
+          <option value="">All adapters</option>
+        </select>
+      </div>
+      <div class="option-group">
         <label for="batchExport">Export</label>
         <select id="batchExport">
           <option value="">None</option>
@@ -661,6 +718,7 @@ header h1 span { color: var(--accent); }
     </div>
   </div>
 
+  <div id="batchProgress" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:1rem;font-size:0.85rem;color:var(--text-muted)"></div>
   <div id="batchSummary" style="display:none"></div>
   <div id="batchResults"></div>
   <div id="batchExportSection" style="display:none"></div>
@@ -695,6 +753,7 @@ header h1 span { color: var(--accent); }
 
 const BASE = window.location.origin;
 let searchStart = 0;
+let activeAdaptersList = [];
 
 function ts() { return new Date().toLocaleTimeString('en-GB', { hour12: false }); }
 function ms(start) { return ((performance.now() - start) | 0) + ' ms'; }
@@ -727,6 +786,33 @@ function logEvent(type, data) {
 
 function clearLog() {
   document.getElementById('logPanel').innerHTML = '<div class="empty-state" id="emptyLog" style="padding:2rem"><p>No events yet.</p></div>';
+}
+
+function updateAdapterSelectors(adapters, defaultAdapter) {
+  const icons = {
+    atomwalker: '\uD83C\uDF93', elasticsearch: '\uD83D\uDD0D', opensearch: '\uD83D\uDD0D',
+    solr: '\u2600\uFE0F', meilisearch: '\u26A1', wikipedia: '\uD83D\uDCD6',
+  };
+  document.querySelectorAll('.adapter-select').forEach(sel => {
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">All adapters</option>';
+    adapters.forEach(a => {
+      const icon = icons[a] || '\uD83D\uDD0C';
+      const isDefault = (a === defaultAdapter);
+      const label = `${icon} ${a}${isDefault ? ' (default)' : ''}`;
+      sel.insertAdjacentHTML('beforeend', `<option value="${escHtml(a)}">${label}</option>`);
+    });
+    if (prev && adapters.includes(prev)) {
+      sel.value = prev;
+    } else if (defaultAdapter && adapters.includes(defaultAdapter)) {
+      sel.value = defaultAdapter;
+    }
+  });
+}
+
+function getSelectedAdapters(selectId) {
+  const v = document.getElementById(selectId).value;
+  return v ? [v] : null;
 }
 
 function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
@@ -764,6 +850,8 @@ async function checkHealth() {
     // Show active adapter info
     const defaultAdapter = data.default_adapter || '—';
     const activeAdapters = data.active_adapters || [];
+    activeAdaptersList = activeAdapters;
+    updateAdapterSelectors(activeAdapters, defaultAdapter);
     if (activeAdapters.length > 0) {
       const adapterIcons = {
         atomwalker: '🎓', elasticsearch: '🔍', opensearch: '🔍',
@@ -824,6 +912,11 @@ function scoreColor(s) {
   return 'var(--red)';
 }
 
+function adapterIcon(name) {
+  const icons = { atomwalker: '\uD83C\uDF93', elasticsearch: '\uD83D\uDD0D', opensearch: '\uD83D\uDD0D', solr: '\u2600\uFE0F', meilisearch: '\u26A1', wikipedia: '\uD83D\uDCD6' };
+  return icons[name] || '\uD83D\uDD0C';
+}
+
 function renderResultCard(scored) {
   const r = scored.result || {};
   const v = scored.validation || {};
@@ -833,8 +926,10 @@ function renderResultCard(scored) {
   const content = (r.content || '').substring(0, 300);
   const url = r.source_url;
   const fields = r.fields || {};
+  const adapter = r.source_adapter || 'unknown';
 
   let meta = '';
+  meta += `<span class="adapter-tag">${adapterIcon(adapter)} ${escHtml(adapter)}</span>`;
   if (fields.authors) meta += `<span>${escHtml(fields.authors)}</span>`;
   if (fields.publication_date) meta += `<span>${escHtml(fields.publication_date)}</span>`;
   if (fields.conference_journal) meta += `<span>${escHtml(fields.conference_journal)}</span>`;
@@ -901,6 +996,10 @@ async function runSearch() {
   const doClassify = document.getElementById('classifyOpt').checked;
 
   try {
+    const selectedAdapters = getSelectedAdapters('adapterSelect');
+    const adapterLabel = selectedAdapters ? selectedAdapters[0] : 'all';
+    setStage('s-', 'search', '', adapterLabel);
+
     const resp = await fetch(BASE + '/v1/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -912,6 +1011,7 @@ async function runSearch() {
           decompose: document.getElementById('decompose').checked,
           classify: doClassify,
           stream: false,
+          adapters: selectedAdapters,
         },
       }),
     });
@@ -922,13 +1022,13 @@ async function runSearch() {
     }
 
     const data = await resp.json();
-    logEvent('search', { query, status: data.status, time_ms: data.processing_time_ms, classify: doClassify });
+    logEvent('search', { query, status: data.status, time_ms: data.processing_time_ms, classify: doClassify, adapter: adapterLabel });
 
     const elapsed = ms(searchStart);
 
     // Pipeline
     setStage('s-', 'plan', 'done', '');
-    setStage('s-', 'search', 'done', '');
+    setStage('s-', 'search', 'done', adapterLabel);
     setStage('s-', 'verify', 'done', '');
     if (doClassify) {
       setStage('s-', 'classify', 'done', '');
@@ -946,18 +1046,37 @@ async function runSearch() {
     const summaryEl = document.getElementById('resultsSummary');
 
     if (doClassify) {
-      // Classified mode — show summary + classified cards
-      const perfect = (data.perfect_results || []).length;
-      const partial = (data.partial_results || []).length;
-      const rejected = data.rejected_count || 0;
+      // Classified mode — show summary + all classified cards
+      const perfectArr = data.perfect_results || [];
+      const partialArr = data.partial_results || [];
+      const rejectedArr = data.rejected_results || [];
       const total = data.total_scanned || 0;
 
-      summaryEl.innerHTML = renderSummaryStats(perfect, partial, rejected, total);
+      summaryEl.innerHTML = renderSummaryStats(perfectArr.length, partialArr.length, rejectedArr.length, total);
       summaryEl.style.display = 'block';
 
       let html = '';
-      (data.perfect_results || []).forEach(r => { html += renderResultCard(r); });
-      (data.partial_results || []).forEach(r => { html += renderResultCard(r); });
+
+      if (perfectArr.length) {
+        html += `<div class="result-group"><h3 class="result-group-title" style="color:var(--green)">Perfect Matches (${perfectArr.length})</h3>`;
+        perfectArr.forEach(r => { html += renderResultCard(r); });
+        html += '</div>';
+      }
+
+      if (partialArr.length) {
+        html += `<div class="result-group"><h3 class="result-group-title" style="color:var(--yellow)">Partial Matches (${partialArr.length})</h3>`;
+        partialArr.forEach(r => { html += renderResultCard(r); });
+        html += '</div>';
+      }
+
+      if (rejectedArr.length) {
+        html += `<div class="result-group result-group-rejected">`;
+        html += `<h3 class="result-group-title" style="color:var(--red);cursor:pointer" onclick="this.parentElement.classList.toggle('collapsed')">Rejected (${rejectedArr.length}) <span class="toggle-hint">click to toggle</span></h3>`;
+        html += '<div class="result-group-body">';
+        rejectedArr.forEach(r => { html += renderResultCard(r); });
+        html += '</div></div>';
+      }
+
       container.innerHTML = html || '<div class="empty-state"><p>No results matched the criteria.</p></div>';
     } else {
       // Raw mode — show raw verified results
@@ -1082,14 +1201,17 @@ async function runStream() {
   // Reset
   document.getElementById('emptyStream').style.display = 'none';
   document.getElementById('streamCriteria').style.display = 'none';
+  document.getElementById('streamSearchResults').style.display = 'none';
+  document.getElementById('streamSearchResults').innerHTML = '';
   document.getElementById('streamResults').innerHTML = '';
   document.getElementById('streamProgress').style.display = 'none';
-  resetStages('ss-', ['plan', 'verify', 'done']);
+  resetStages('ss-', ['plan', 'search', 'verify', 'done']);
 
   const startT = performance.now();
   setStage('ss-', 'plan', 'active', '');
 
   try {
+    const selectedAdapters = getSelectedAdapters('streamAdapterSelect');
     const resp = await fetch(BASE + '/v1/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1100,6 +1222,7 @@ async function runStream() {
           verify: true,
           decompose: true,
           stream: true,
+          adapters: selectedAdapters,
         },
       }),
     });
@@ -1141,9 +1264,42 @@ async function runStream() {
 
         if (eventType === 'criteria') {
           setStage('ss-', 'plan', 'done', ms(startT));
-          setStage('ss-', 'verify', 'active', '');
+          setStage('ss-', 'search', 'active', '');
           if (data.criteria_result) {
             renderCriteria(data.criteria_result, document.getElementById('streamCriteria'));
+          }
+          const progress = document.getElementById('streamProgress');
+          progress.innerHTML = `<span class="spinner"></span> Searching across ${data.criteria_result?.search_queries?.length || '?'} queries...`;
+          progress.style.display = 'block';
+        } else if (eventType === 'search_complete') {
+          setStage('ss-', 'search', 'done', `${data.total_results} results`);
+          setStage('ss-', 'verify', 'active', '');
+          totalResults = data.total_results || 0;
+
+          const progress = document.getElementById('streamProgress');
+          progress.innerHTML = `<span class="spinner"></span> Found ${totalResults} results, verifying...`;
+
+          // Render raw search results
+          const searchResultsEl = document.getElementById('streamSearchResults');
+          if (data.results && data.results.length) {
+            let srHtml = `<details class="criteria-card" style="margin-bottom:1rem">`;
+            srHtml += `<summary style="cursor:pointer;font-size:0.85rem;font-weight:600;color:var(--blue)">Raw Search Results (${data.results.length})</summary>`;
+            srHtml += `<div style="margin-top:0.6rem">`;
+            data.results.forEach((r, i) => {
+              const adapter = r.source_adapter || 'unknown';
+              const icon = adapterIcon(adapter);
+              srHtml += `<div style="padding:0.5rem 0;border-bottom:1px solid var(--border);font-size:0.83rem">`;
+              srHtml += `<span class="adapter-tag" style="margin-right:0.4rem">${icon} ${escHtml(adapter)}</span>`;
+              srHtml += `<strong style="color:var(--text)">${escHtml(r.title || 'Untitled')}</strong>`;
+              if (r.source_url && r.source_url !== 'N/A') {
+                srHtml += ` <a href="${escHtml(r.source_url)}" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.75rem;margin-left:0.3rem">link</a>`;
+              }
+              srHtml += `<div style="color:var(--text-dim);font-size:0.78rem;margin-top:0.2rem">${escHtml((r.content || '').substring(0, 150))}${(r.content || '').length > 150 ? '...' : ''}</div>`;
+              srHtml += `</div>`;
+            });
+            srHtml += `</div></details>`;
+            searchResultsEl.innerHTML = srHtml;
+            searchResultsEl.style.display = 'block';
           }
         } else if (eventType === 'result') {
           resultCount++;
@@ -1181,9 +1337,17 @@ async function runStream() {
 
 async function runBatch() {
   const text = document.getElementById('batchQueries').value.trim();
-  if (!text) return;
+  if (!text) {
+    document.getElementById('batchResults').innerHTML = '<div class="empty-state"><p style="color:var(--yellow)">Please enter at least one query (one per line).</p></div>';
+    document.getElementById('emptyBatch').style.display = 'none';
+    return;
+  }
   const queries = text.split('\n').map(l => l.trim()).filter(Boolean);
-  if (!queries.length) return;
+  if (!queries.length) {
+    document.getElementById('batchResults').innerHTML = '<div class="empty-state"><p style="color:var(--yellow)">Please enter at least one query (one per line).</p></div>';
+    document.getElementById('emptyBatch').style.display = 'none';
+    return;
+  }
 
   const btn = document.getElementById('batchBtn');
   btn.disabled = true;
@@ -1194,71 +1358,120 @@ async function runBatch() {
   document.getElementById('batchResults').innerHTML = '';
   document.getElementById('batchExportSection').style.display = 'none';
 
+  const progressEl = document.getElementById('batchProgress');
+  progressEl.innerHTML = `<span class="spinner"></span> Processing ${queries.length} queries through the full pipeline (plan → search → verify → classify). This may take a while...`;
+  progressEl.style.display = 'block';
+
+  const batchStart = performance.now();
+  const selectedAdapters = getSelectedAdapters('batchAdapterSelect');
+  const container = document.getElementById('batchResults');
+
   try {
     const exportFmt = document.getElementById('batchExport').value || undefined;
-    const resp = await fetch(BASE + '/v1/search/batch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        queries,
-        options: {
-          max_results: parseInt(document.getElementById('batchMax').value) || 5,
-          verify: true,
-          decompose: true,
-        },
-        export_format: exportFmt,
-      }),
-    });
+    const maxResults = parseInt(document.getElementById('batchMax').value) || 5;
 
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({ detail: resp.statusText }));
-      throw new Error(err.detail || resp.statusText);
+    // Run each query individually so we can show per-query progress
+    const allResponses = [];
+    for (let i = 0; i < queries.length; i++) {
+      progressEl.innerHTML = `<span class="spinner"></span> Processing query ${i + 1} / ${queries.length}: "${escHtml(queries[i].substring(0, 60))}"... (${ms(batchStart)} elapsed)`;
+
+      try {
+        const resp = await fetch(BASE + '/v1/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: queries[i],
+            options: {
+              max_results: maxResults,
+              verify: true,
+              decompose: true,
+              classify: true,
+              stream: false,
+              adapters: selectedAdapters,
+            },
+          }),
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+          throw new Error(err.detail || resp.statusText);
+        }
+
+        const qr = await resp.json();
+        allResponses.push(qr);
+        logEvent('batch-query', { index: i + 1, query: queries[i], status: qr.status });
+
+        // Render this query's results immediately
+        let html = `<div style="margin-bottom:1.5rem">
+          <h3 style="font-size:0.9rem;color:var(--accent);margin-bottom:0.5rem">Query ${i+1}: ${escHtml(qr.query)}</h3>`;
+
+        const perfectArr = qr.perfect_results || [];
+        const partialArr = qr.partial_results || [];
+        const rejectedArr = qr.rejected_results || [];
+        html += renderSummaryStats(perfectArr.length, partialArr.length, rejectedArr.length, qr.total_scanned || 0);
+
+        perfectArr.forEach(r => { html += renderResultCard(r); });
+        partialArr.forEach(r => { html += renderResultCard(r); });
+        if (rejectedArr.length) {
+          html += `<details style="margin-top:0.5rem"><summary style="cursor:pointer;font-size:0.82rem;color:var(--red)">Rejected (${rejectedArr.length})</summary>`;
+          rejectedArr.forEach(r => { html += renderResultCard(r); });
+          html += '</details>';
+        }
+
+        html += '</div>';
+        container.insertAdjacentHTML('beforeend', html);
+      } catch (qErr) {
+        logEvent('error', { message: `Query ${i+1} failed: ${qErr.message}` });
+        container.insertAdjacentHTML('beforeend',
+          `<div style="margin-bottom:1.5rem">
+            <h3 style="font-size:0.9rem;color:var(--accent);margin-bottom:0.5rem">Query ${i+1}: ${escHtml(queries[i])}</h3>
+            <div class="empty-state" style="padding:1rem"><p style="color:var(--red)">Failed: ${escHtml(qErr.message)}</p></div>
+          </div>`);
+      }
     }
 
-    const data = await resp.json();
-    logEvent('batch', { total_queries: data.total_queries, time_ms: data.processing_time_ms });
+    const totalElapsed = ms(batchStart);
+    progressEl.innerHTML = `Completed ${queries.length} queries in ${totalElapsed}`;
 
     // Summary
     const summaryEl = document.getElementById('batchSummary');
     summaryEl.innerHTML = `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:1rem">
-      <strong>${data.total_queries} queries</strong> processed in <strong>${data.processing_time_ms} ms</strong> — status: ${data.status}
+      <strong>${queries.length} queries</strong> processed in <strong>${totalElapsed}</strong>
     </div>`;
     summaryEl.style.display = 'block';
 
-    // Per-query results
-    const container = document.getElementById('batchResults');
-    (data.results || []).forEach((qr, idx) => {
-      let html = `<div style="margin-bottom:1.5rem">
-        <h3 style="font-size:0.9rem;color:var(--accent);margin-bottom:0.5rem">Query ${idx+1}: ${escHtml(qr.query)}</h3>`;
-
-      const perfect = (qr.perfect_results || []).length;
-      const partial = (qr.partial_results || []).length;
-      html += renderSummaryStats(perfect, partial, qr.rejected_count || 0, qr.total_scanned || 0);
-
-      (qr.perfect_results || []).forEach(r => { html += renderResultCard(r); });
-      (qr.partial_results || []).forEach(r => { html += renderResultCard(r); });
-
-      html += '</div>';
-      container.insertAdjacentHTML('beforeend', html);
-    });
-
-    // Export
-    if (data.export_data) {
-      const exportSec = document.getElementById('batchExportSection');
-      const blob = new Blob([data.export_data], { type: data.export_format === 'csv' ? 'text/csv' : 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const fname = 'opensift-batch.' + (data.export_format || 'txt');
-
-      exportSec.innerHTML = `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;margin-top:1rem">
-        <strong>Export ready</strong> (${data.export_format.toUpperCase()}) —
-        <a href="${url}" download="${fname}" style="color:var(--accent)">Download ${fname}</a>
-      </div>`;
-      exportSec.style.display = 'block';
+    // Export (if requested, re-fetch via batch endpoint)
+    if (exportFmt) {
+      try {
+        const batchResp = await fetch(BASE + '/v1/search/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            queries,
+            options: { max_results: maxResults, verify: true, decompose: true, adapters: selectedAdapters },
+            export_format: exportFmt,
+          }),
+        });
+        if (batchResp.ok) {
+          const batchData = await batchResp.json();
+          if (batchData.export_data) {
+            const exportSec = document.getElementById('batchExportSection');
+            const blob = new Blob([batchData.export_data], { type: exportFmt === 'csv' ? 'text/csv' : 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const fname = 'opensift-batch.' + (exportFmt || 'txt');
+            exportSec.innerHTML = `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;margin-top:1rem">
+              <strong>Export ready</strong> (${exportFmt.toUpperCase()}) —
+              <a href="${url}" download="${fname}" style="color:var(--accent)">Download ${fname}</a>
+            </div>`;
+            exportSec.style.display = 'block';
+          }
+        }
+      } catch { /* export is best-effort */ }
     }
 
   } catch (e) {
     logEvent('error', { message: e.message });
-    document.getElementById('batchResults').innerHTML = `<div class="empty-state"><p style="color:var(--red)">${escHtml(e.message)}</p></div>`;
+    progressEl.innerHTML = `<span style="color:var(--red)">Batch failed: ${escHtml(e.message)}</span>`;
   } finally {
     btn.disabled = false;
     btn.textContent = 'Run Batch';

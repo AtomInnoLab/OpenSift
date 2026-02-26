@@ -12,11 +12,25 @@ class SearchOptions(BaseModel):
 
     decompose: bool = Field(default=True, description="Enable query decomposition into search queries and criteria")
     verify: bool = Field(default=True, description="Enable LLM-based result verification against criteria")
-    classify: bool = Field(default=True, description="Enable classification (perfect/partial/reject). When false, returns raw verification results without classification")
-    stream: bool = Field(default=False, description="Enable streaming mode — emit each result as it is verified via SSE")
+    classify: bool = Field(
+        default=True,
+        description="Enable classification (perfect/partial/reject). When false, returns raw verification results without classification",
+    )
+    stream: bool = Field(
+        default=False, description="Enable streaming mode — emit each result as it is verified via SSE"
+    )
     max_results: int = Field(default=10, ge=1, le=100, description="Maximum number of results to return")
     recency_filter: str | None = Field(default=None, description="Recency filter (e.g., '1y', '6m', '30d')")
-    adapters: list[str] | None = Field(default=None, description="Specific adapters to use (None = default)")
+    adapters: list[str] | None = Field(
+        default=None,
+        description=(
+            "Adapter(s) to use for this search. Pass a list of adapter names "
+            '(e.g. ["wikipedia"], ["atomwalker", "wikipedia"]) to restrict '
+            "the search to specific backends. Built-in adapters: atomwalker, "
+            "elasticsearch, opensearch, solr, meilisearch, wikipedia. "
+            "When null (default), all active adapters are used."
+        ),
+    )
     timeout_seconds: float = Field(default=30.0, gt=0, description="Maximum request processing time")
 
 

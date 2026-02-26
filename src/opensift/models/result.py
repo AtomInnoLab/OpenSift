@@ -61,6 +61,10 @@ class ResultItem(BaseModel):
             )
     """
 
+    source_adapter: str = Field(
+        default="unknown",
+        description="Name of the search adapter that produced this result (e.g. 'wikipedia', 'atomwalker')",
+    )
     result_type: str = Field(
         default="generic",
         description=(

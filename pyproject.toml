@@ -38,16 +38,16 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-elasticsearch = ["elasticsearch>=8.17.0"]
+elasticsearch = ["elasticsearch>=8.17.0,<9.0.0"]
 opensearch = ["opensearch-py>=2.7.0"]
 wikipedia = ["wikipedia-api>=0.7.1"]
-all = ["elasticsearch>=8.17.0", "opensearch-py>=2.7.0", "wikipedia-api>=0.7.1"]
+all = ["elasticsearch>=8.17.0,<9.0.0", "opensearch-py>=2.7.0", "wikipedia-api>=0.7.1"]
 
 [project.urls]
-Homepage = "https://github.com/opensift/opensift"
-Documentation = "https://github.com/opensift/opensift#readme"
-Repository = "https://github.com/opensift/opensift"
-Issues = "https://github.com/opensift/opensift/issues"
+Homepage = "https://github.com/AtomInnoLab/OpenSift"
+Documentation = "https://atominnolab.github.io/OpenSift"
+Repository = "https://github.com/AtomInnoLab/OpenSift"
+Issues = "https://github.com/AtomInnoLab/OpenSift/issues"
 
 [project.scripts]
 opensift = "opensift.cli:main"
@@ -114,6 +114,10 @@ disallow_untyped_defs = true
 module = ["elasticsearch.*"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["opensearchpy.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
@@ -122,6 +126,11 @@ markers = [
     "unit: Unit tests (fast, no external deps)",
     "integration: Integration tests (require external services)",
     "slow: Slow tests",
+    "elasticsearch: Elasticsearch adapter tests",
+    "opensearch: OpenSearch adapter tests",
+    "solr: Solr adapter tests",
+    "meilisearch: MeiliSearch adapter tests",
+    "wikipedia: Wikipedia adapter tests",
 ]
 
 [tool.coverage.run]

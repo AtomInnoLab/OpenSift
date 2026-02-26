@@ -202,7 +202,7 @@ class OpenSiftEngine:
             # Separate by classification
             perfect = [r for r in scored if r.classification == ResultClassification.PERFECT]
             partial = [r for r in scored if r.classification == ResultClassification.PARTIAL]
-            rejected_count = sum(1 for r in scored if r.classification == ResultClassification.REJECT)
+            rejected = [r for r in scored if r.classification == ResultClassification.REJECT]
 
             processing_time_ms = int((time.monotonic() - start_time) * 1000)
 
@@ -210,7 +210,7 @@ class OpenSiftEngine:
                 "Search complete: %d perfect, %d partial, %d rejected in %d ms",
                 len(perfect),
                 len(partial),
-                rejected_count,
+                len(rejected),
                 processing_time_ms,
             )
 
@@ -222,7 +222,8 @@ class OpenSiftEngine:
                 criteria_result=criteria_result,
                 perfect_results=perfect,
                 partial_results=partial,
-                rejected_count=rejected_count,
+                rejected_results=rejected,
+                rejected_count=len(rejected),
                 total_scanned=len(results),
             )
 
@@ -289,6 +290,15 @@ class OpenSiftEngine:
             logger.info("[stream] Stage 2: Executing %d search queries", len(criteria_result.search_queries))
             items = await self._execute_searches(criteria_result.search_queries, request)
             logger.info("[stream] Retrieved %d results", len(items))
+
+            yield StreamEvent(
+                event="search_complete",
+                data={
+                    "total_results": len(items),
+                    "search_queries_count": len(criteria_result.search_queries),
+                    "results": [item.model_dump() for item in items],
+                },
+            )
 
             if not items:
                 yield StreamEvent(
@@ -551,6 +561,11 @@ class OpenSiftEngine:
     ) -> list[ResultItem]:
         """Execute search queries via adapters and return deduplicated results.
 
+        Each search query is dispatched to every selected adapter (controlled by
+        ``request.options.adapters``).  ``max_results`` applies **per query per
+        adapter**, so the total results are the deduplicated union of all
+        query x adapter combinations.
+
         If the adapter exposes a ``search_papers()`` method (e.g. AtomWalker),
         it is used directly to preserve full metadata, then converted to
         ``ResultItem``.  Otherwise, the standard ``search_and_normalize()``
@@ -564,42 +579,44 @@ class OpenSiftEngine:
             Deduplicated list of ResultItem objects.
         """
         try:
-            adapter = self.adapter_registry.get_default()
+            adapters = self.adapter_registry.get_adapters(request.options.adapters)
         except Exception:
             logger.warning("No search adapter available, returning empty results")
             return []
 
-        # Prefer adapter.search_papers() for academic adapters
-        use_paper_path = hasattr(adapter, "search_papers") and callable(adapter.search_papers)
+        tasks: list[asyncio.Task] = []
+        task_meta: list[tuple[str, bool]] = []  # (adapter_name, use_paper_path)
 
-        if use_paper_path:
-            tasks = [
-                adapter.search_papers(query, request.options)  # type: ignore[union-attr]
-                for query in search_queries
-            ]
-        else:
-            tasks = [adapter.search_and_normalize(query, request.options) for query in search_queries]
+        for adapter in adapters:
+            use_paper_path = hasattr(adapter, "search_papers") and callable(adapter.search_papers)
+            for query in search_queries:
+                if use_paper_path:
+                    tasks.append(adapter.search_papers(query, request.options))  # type: ignore[union-attr]
+                else:
+                    tasks.append(adapter.search_and_normalize(query, request.options))
+                task_meta.append((adapter.name, use_paper_path))
 
         raw_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Collect and deduplicate
         seen_titles: set[str] = set()
         items: list[ResultItem] = []
 
-        for result in raw_results:
+        for i, result in enumerate(raw_results):
             if isinstance(result, Exception):
-                logger.warning("Search query failed: %s", result)
+                adapter_name, _ = task_meta[i]
+                logger.warning("Search query failed on adapter '%s': %s", adapter_name, result)
                 continue
+            adapter_name, use_paper_path = task_meta[i]
             for raw_item in result:
                 item = raw_item.to_result_item() if use_paper_path else self._doc_to_result_item(raw_item)
+                item.source_adapter = adapter_name
 
                 key = item.title.strip().lower()
                 if key not in seen_titles:
                     seen_titles.add(key)
                     items.append(item)
 
-        # Limit to max_results
-        return items[: request.options.max_results]
+        return items
 
     @staticmethod
     def _doc_to_result_item(doc: object) -> ResultItem:

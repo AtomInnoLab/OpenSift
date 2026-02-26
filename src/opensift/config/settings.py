@@ -26,32 +26,29 @@ class ServerSettings(BaseModel):
 
 
 class AISettings(BaseModel):
-    """AI/LLM provider configuration.
+    """WisModel configuration.
 
-    OpenSift uses LLMs for two core tasks:
+    OpenSift uses WisModel for two core tasks:
       1. Query Planning — generating search queries and screening criteria
       2. Result Verification — validating papers against criteria
 
-    Default configuration uses WisModel, which is specifically trained
-    with enhanced query-planning and result-verification capabilities.
-    Any OpenAI-compatible API can be used by setting ``base_url``.
+    WisModel is the only supported model, specifically trained via SFT + GRPO
+    with state-of-the-art query-planning and result-verification capabilities.
     """
 
-    provider: str = Field(default="wismodel", description="AI provider: wismodel, openai, local")
-    api_key: str = Field(default="", description="API key for the AI provider")
+    api_key: str = Field(default="", description="WisModel API key")
     model_planner: str = Field(
         default="WisModel-20251110",
-        description="Model for query planning / criteria generation",
+        description="WisModel version for query planning / criteria generation",
     )
     model_verifier: str = Field(
         default="WisModel-20251110",
-        description="Model for result verification",
+        description="WisModel version for result verification",
     )
     base_url: str = Field(
         default="http://wis-apihub-v2.dev.atominnolab.com/api/v1/resource/WisModel/v1",
-        description="API base URL (OpenAI-compatible endpoint)",
+        description="WisModel API endpoint",
     )
-    fallback_to_local: bool = Field(default=True, description="Fallback to local heuristics if LLM fails")
     max_tokens: int = Field(default=4096, description="Maximum tokens per LLM call")
     temperature: float = Field(default=0.1, description="LLM temperature for generation")
 

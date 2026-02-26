@@ -91,11 +91,7 @@ class QueryPlanner:
                     exc_info=True,
                 )
 
-        # Fallback to heuristic
-        if self.settings.ai.fallback_to_local:
-            return self._create_simple_result(request.query)
-
-        raise RuntimeError("LLM criteria generation failed and fallback is disabled")
+        return self._create_simple_result(request.query)
 
     async def _generate_with_llm(self, query: str) -> CriteriaResult:
         """Use an LLM to generate search queries and criteria.
@@ -180,15 +176,37 @@ class QueryPlanner:
         """Create a simple fallback result using the original query.
 
         Used when LLM is unavailable or decomposition is disabled.
+        Generates at least 2 query variations to improve recall.
         """
+        queries = [query]
+
+        tokens = query.split()
+        if len(tokens) >= 4:
+            mid = len(tokens) // 2
+            queries.append(" ".join(tokens[:mid]))
+            queries.append(" ".join(tokens[mid:]))
+        elif len(tokens) >= 2:
+            queries.append(" ".join(tokens[::-1]))
+        else:
+            queries.append(f"{query} overview")
+
+        seen: set[str] = set()
+        unique: list[str] = []
+        for q in queries:
+            key = q.strip().lower()
+            if key and key not in seen:
+                seen.add(key)
+                unique.append(q.strip())
+        queries = unique or [query]
+
         return CriteriaResult(
-            search_queries=[query],
+            search_queries=queries,
             criteria=[
                 Criterion(
                     criterion_id="criterion_1",
                     type="topic",
                     name="Query relevance",
-                    description=f"The paper is directly relevant to: {query}",
+                    description=f"The result is directly relevant to: {query}",
                     weight=1.0,
                 ),
             ],

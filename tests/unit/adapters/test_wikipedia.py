@@ -28,12 +28,16 @@ def sample_wiki_doc() -> dict[str, Any]:
             "Solar power forecasting is the process of predicting "
             "the output of solar energy systems using weather data."
         ),
+        "search_snippet": '<span class="searchmatch">Solar</span> power forecasting is...',
         "full_url": "https://en.wikipedia.org/wiki/Solar_power_forecasting",
         "canonical_url": "https://en.wikipedia.org/wiki/Solar_power_forecasting",
         "url": "https://en.wikipedia.org/wiki/Solar_power_forecasting",
         "language": "en",
         "categories": ["Solar energy", "Weather forecasting"],
         "langlinks_count": 15,
+        "word_count": 3500,
+        "last_edited": "2025-01-15T12:00:00Z",
+        "relevance_score": 1.0,
     }
 
 
@@ -107,12 +111,26 @@ class TestWikipediaSchemaMapping:
         assert doc.title == "Solar power forecasting"
         assert "predicting" in doc.content
         assert doc.snippet is not None
+        assert "Solar" in doc.snippet
         assert doc.score == 1.0
         assert doc.metadata.source == "wikipedia_en"
         assert doc.metadata.url == "https://en.wikipedia.org/wiki/Solar_power_forecasting"
         assert doc.metadata.language == "en"
+        assert doc.metadata.published_date is not None
         assert "Solar energy" in doc.metadata.tags
         assert doc.metadata.extra.get("langlinks_count") == 15
+        assert doc.metadata.extra.get("word_count") == 3500
+
+    def test_map_uses_relevance_score(self, adapter: WikipediaAdapter) -> None:
+        doc = adapter.map_to_standard_schema(
+            {
+                "id": "w1",
+                "title": "Test",
+                "summary": "Test summary",
+                "relevance_score": 0.75,
+            }
+        )
+        assert doc.score == 0.75
 
     def test_map_minimal_doc(self, adapter: WikipediaAdapter) -> None:
         doc = adapter.map_to_standard_schema({"id": "w1"})
@@ -138,6 +156,31 @@ class TestWikipediaSchemaMapping:
 # ── Search ───────────────────────────────────────────────────────────────────
 
 
+def _make_fulltext_search_response(
+    results: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Build a mock MediaWiki action=query&list=search API response."""
+    return {
+        "batchcomplete": "",
+        "query": {
+            "searchinfo": {"totalhits": len(results)},
+            "search": results,
+        },
+    }
+
+
+def _mock_urlopen_for(response_dict: dict[str, Any]) -> MagicMock:
+    """Create a mock urlopen context-manager that returns *response_dict* as JSON."""
+    import json
+    from io import BytesIO
+
+    response_bytes = json.dumps(response_dict).encode("utf-8")
+    mock = MagicMock()
+    mock.__enter__ = MagicMock(return_value=BytesIO(response_bytes))
+    mock.__exit__ = MagicMock(return_value=False)
+    return mock
+
+
 class TestWikipediaSearch:
     async def test_search_not_initialized_raises(self, adapter: WikipediaAdapter) -> None:
         from opensift.adapters.base.exceptions import ConnectionError
@@ -152,29 +195,79 @@ class TestWikipediaSearch:
         mock_wiki.page.return_value = mock_page
         adapter._wiki = mock_wiki
 
-        # Mock the urllib call for opensearch
-        mock_search_response = [
-            "solar",
-            ["Solar power forecasting"],
-            ["Description"],
-            ["https://en.wikipedia.org/wiki/Solar_power_forecasting"],
-        ]
-
-        import json
         import urllib.request
-        from io import BytesIO
 
-        response_bytes = json.dumps(mock_search_response).encode("utf-8")
-        mock_urlopen = MagicMock()
-        mock_urlopen.__enter__ = MagicMock(return_value=BytesIO(response_bytes))
-        mock_urlopen.__exit__ = MagicMock(return_value=False)
+        api_response = _make_fulltext_search_response(
+            [
+                {
+                    "ns": 0,
+                    "title": "Solar power forecasting",
+                    "pageid": 12345,
+                    "size": 28000,
+                    "wordcount": 3500,
+                    "snippet": '<span class="searchmatch">Solar</span> power forecasting...',
+                    "timestamp": "2025-01-15T12:00:00Z",
+                },
+            ]
+        )
 
-        with patch.object(urllib.request, "urlopen", return_value=mock_urlopen):
+        with patch.object(urllib.request, "urlopen", return_value=_mock_urlopen_for(api_response)):
             docs = adapter._search_sync("solar", max_results=5)
 
         assert len(docs) == 1
         assert docs[0]["title"] == "Solar power forecasting"
         assert "wikipedia.org" in docs[0]["url"]
+        assert docs[0]["relevance_score"] == 1.0
+        assert docs[0]["word_count"] == 3500
+
+    def test_search_sync_relevance_ranking(self, adapter: WikipediaAdapter) -> None:
+        """Multiple results should have descending relevance scores."""
+        mock_wiki = MagicMock()
+        mock_page = _make_mock_page()
+        mock_wiki.page.return_value = mock_page
+        adapter._wiki = mock_wiki
+
+        import urllib.request
+
+        api_response = _make_fulltext_search_response(
+            [
+                {
+                    "ns": 0,
+                    "title": "Page A",
+                    "pageid": 1,
+                    "size": 1000,
+                    "wordcount": 100,
+                    "snippet": "A",
+                    "timestamp": "2025-01-01T00:00:00Z",
+                },
+                {
+                    "ns": 0,
+                    "title": "Page B",
+                    "pageid": 2,
+                    "size": 2000,
+                    "wordcount": 200,
+                    "snippet": "B",
+                    "timestamp": "2025-01-02T00:00:00Z",
+                },
+                {
+                    "ns": 0,
+                    "title": "Page C",
+                    "pageid": 3,
+                    "size": 3000,
+                    "wordcount": 300,
+                    "snippet": "C",
+                    "timestamp": "2025-01-03T00:00:00Z",
+                },
+            ]
+        )
+
+        with patch.object(urllib.request, "urlopen", return_value=_mock_urlopen_for(api_response)):
+            docs = adapter._search_sync("test", max_results=5)
+
+        assert len(docs) == 3
+        scores = [d["relevance_score"] for d in docs]
+        assert scores == sorted(scores, reverse=True)
+        assert scores[0] > scores[-1]
 
     def test_search_sync_nonexistent_page(self, adapter: WikipediaAdapter) -> None:
         """Pages that don't exist should be skipped."""
@@ -183,23 +276,23 @@ class TestWikipediaSearch:
         mock_wiki.page.return_value = mock_page
         adapter._wiki = mock_wiki
 
-        mock_search_response = [
-            "nonexistent",
-            ["NonexistentPage"],
-            [""],
-            ["https://en.wikipedia.org/wiki/NonexistentPage"],
-        ]
-
-        import json
         import urllib.request
-        from io import BytesIO
 
-        response_bytes = json.dumps(mock_search_response).encode("utf-8")
-        mock_urlopen = MagicMock()
-        mock_urlopen.__enter__ = MagicMock(return_value=BytesIO(response_bytes))
-        mock_urlopen.__exit__ = MagicMock(return_value=False)
+        api_response = _make_fulltext_search_response(
+            [
+                {
+                    "ns": 0,
+                    "title": "NonexistentPage",
+                    "pageid": 99999,
+                    "size": 0,
+                    "wordcount": 0,
+                    "snippet": "",
+                    "timestamp": "",
+                },
+            ]
+        )
 
-        with patch.object(urllib.request, "urlopen", return_value=mock_urlopen):
+        with patch.object(urllib.request, "urlopen", return_value=_mock_urlopen_for(api_response)):
             docs = adapter._search_sync("nonexistent", max_results=5)
 
         assert len(docs) == 0
@@ -213,22 +306,40 @@ class TestWikipediaSearch:
         mock_wiki.page.return_value = mock_page
         adapter._wiki = mock_wiki
 
-        mock_search_response = ["q", ["Page"], ["Desc"], ["https://en.wikipedia.org/wiki/Page"]]
-
-        import json
         import urllib.request
-        from io import BytesIO
 
-        response_bytes = json.dumps(mock_search_response).encode("utf-8")
-        mock_urlopen = MagicMock()
-        mock_urlopen.__enter__ = MagicMock(return_value=BytesIO(response_bytes))
-        mock_urlopen.__exit__ = MagicMock(return_value=False)
+        api_response = _make_fulltext_search_response(
+            [
+                {
+                    "ns": 0,
+                    "title": "Page",
+                    "pageid": 1,
+                    "size": 5000,
+                    "wordcount": 500,
+                    "snippet": "Desc",
+                    "timestamp": "2025-01-01T00:00:00Z",
+                },
+            ]
+        )
 
-        with patch.object(urllib.request, "urlopen", return_value=mock_urlopen):
+        with patch.object(urllib.request, "urlopen", return_value=_mock_urlopen_for(api_response)):
             docs = adapter._search_sync("q", max_results=5)
 
         assert len(docs) == 1
         assert len(docs[0]["summary"]) <= 51 + 1  # 50 chars + "…"
+
+    def test_search_sync_empty_results(self, adapter: WikipediaAdapter) -> None:
+        """Empty search results should return an empty list."""
+        adapter._wiki = MagicMock()
+
+        import urllib.request
+
+        api_response = _make_fulltext_search_response([])
+
+        with patch.object(urllib.request, "urlopen", return_value=_mock_urlopen_for(api_response)):
+            docs = adapter._search_sync("xyznonexistent", max_results=5)
+
+        assert docs == []
 
 
 # ── Fetch Document ───────────────────────────────────────────────────────────

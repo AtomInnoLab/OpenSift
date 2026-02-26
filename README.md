@@ -3,11 +3,13 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/opensift/opensift/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
+  <a href="https://github.com/AtomInnoLab/OpenSift/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11%2B-blue.svg" alt="Python 3.11+"></a>
-  <a href="https://github.com/opensift/opensift"><img src="https://img.shields.io/badge/version-0.1.0-green.svg" alt="Version"></a>
+  <a href="https://github.com/AtomInnoLab/OpenSift"><img src="https://img.shields.io/badge/version-0.1.0-green.svg" alt="Version"></a>
   <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff"></a>
-  <a href="https://github.com/opensift/opensift"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
+  <a href="https://github.com/AtomInnoLab/OpenSift"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
+  <a href="https://arxiv.org/abs/2512.06879"><img src="https://img.shields.io/badge/arXiv-2512.06879-b31b1b.svg" alt="arXiv"></a>
+  <a href="https://wispaper.ai"><img src="https://img.shields.io/badge/Origin-WisPaper-8A2BE2.svg" alt="WisPaper"></a>
 </p>
 
 <p align="center">
@@ -15,6 +17,8 @@
 </p>
 
 **Open-source AI augmentation layer that adds intelligent query planning and result verification to any search backend.**
+
+OpenSift is born from [WisPaper](https://wispaper.ai), an AI-powered academic search platform developed by Fudan NLP Lab and WisPaper.ai. The core search-verification paradigm — AI query planning + LLM-based result verification — is described in the research paper [*WisPaper: Your AI Scholar Search Engine*](https://arxiv.org/abs/2512.06879). OpenSift extracts this proven paradigm into a **universal, open-source middleware** that can be plugged into any search backend, bringing the same AI capabilities to every search engine.
 
 OpenSift is not a search engine or a Q&A system. It is a lightweight AI middleware that plugs into your existing search backend (Elasticsearch, OpenSearch, Solr, MeiliSearch, Wikipedia, AtomWalker, or any custom API) and injects two core AI capabilities:
 
@@ -45,7 +49,7 @@ Traditional search systems return **keyword-matched** results, leaving users to 
 ### Installation
 
 ```bash
-git clone https://github.com/opensift/opensift.git
+git clone https://github.com/AtomInnoLab/OpenSift.git
 cd opensift
 
 # Development environment
@@ -61,7 +65,7 @@ poetry install
 cp opensift-config.example.yaml opensift-config.yaml
 cp .env.example .env
 
-# Configure WisModel API Key (default model, specifically trained for Planning & Verification)
+# Configure WisModel API Key (the only supported LLM)
 # Edit .env: OPENSIFT_AI__API_KEY=your-wismodel-key
 
 # Configure search backend (default: AtomWalker academic search)
@@ -134,8 +138,21 @@ curl -X POST http://localhost:8080/v1/search \
       }
     ]
   },
-  "perfect_results": [ ... ],
+  "perfect_results": [
+    {
+      "result": {
+        "source_adapter": "wikipedia",
+        "title": "Solar nowcasting with CNN",
+        "content": "...",
+        "source_url": "https://..."
+      },
+      "validation": { "criteria_assessment": [...], "summary": "..." },
+      "classification": "perfect",
+      "weighted_score": 0.95
+    }
+  ],
   "partial_results": [ ... ],
+  "rejected_results": [ ... ],
   "rejected_count": 5,
   "total_scanned": 20
 }
@@ -143,7 +160,14 @@ curl -X POST http://localhost:8080/v1/search \
 
 ### Streaming Mode (SSE)
 
-Add `"stream": true` to enable streaming. Each verified result is pushed immediately:
+Add `"stream": true` to enable streaming. The pipeline stages are emitted as separate SSE events so the client can render progress in real time:
+
+```
+Pipeline:  criteria → search_complete → result × N → done
+                                                    (or error)
+```
+
+**Request:**
 
 ```bash
 curl -N -X POST http://localhost:8080/v1/search \
@@ -153,37 +177,130 @@ curl -N -X POST http://localhost:8080/v1/search \
     "options": {
       "max_results": 10,
       "verify": true,
-      "stream": true
+      "stream": true,
+      "adapters": ["wikipedia"]
     }
   }'
 ```
 
-**SSE Event Stream:**
+**SSE Event Stream (full example):**
 
 ```
 event: criteria
-data: {"request_id":"req_a1b2c3d4e5f6","query":"...","criteria_result":{...}}
+data: {"request_id":"req_a1b2c3d4e5f6","query":"Deep learning papers on solar nowcasting","criteria_result":{"search_queries":["\"solar nowcasting\" deep learning","solar irradiance forecasting neural network"],"criteria":[{"criterion_id":"c1","type":"task","name":"Solar nowcasting","description":"The paper must address solar irradiance nowcasting","weight":0.6},{"criterion_id":"c2","type":"method","name":"Deep learning","description":"The paper must use deep learning methods","weight":0.4}]}}
+
+event: search_complete
+data: {"total_results":15,"search_queries_count":2,"results":[{"source_adapter":"wikipedia","title":"Solar nowcasting","content":"Solar nowcasting refers to...","source_url":"https://en.wikipedia.org/wiki/Solar_nowcasting"},{"source_adapter":"wikipedia","title":"Deep learning for weather prediction","content":"...","source_url":"https://..."}]}
 
 event: result
-data: {"index":1,"total":10,"scored_result":{"result":{...},"validation":{...},"classification":"perfect","weighted_score":0.95}}
+data: {"index":1,"total":15,"scored_result":{"result":{"source_adapter":"wikipedia","title":"Solar nowcasting","content":"...","source_url":"https://..."},"validation":{"criteria_assessment":[{"criterion_id":"c1","assessment":"support","explanation":"Directly addresses solar nowcasting"},{"criterion_id":"c2","assessment":"support","explanation":"Discusses CNN-based methods"}],"summary":"Highly relevant paper on solar nowcasting using deep learning"},"classification":"perfect","weighted_score":0.95}}
 
 event: result
-data: {"index":2,"total":10,"scored_result":{"result":{...},"validation":{...},"classification":"partial","weighted_score":0.5}}
+data: {"index":2,"total":15,"scored_result":{"result":{"source_adapter":"wikipedia","title":"Weather forecasting","content":"...","source_url":"https://..."},"validation":{"criteria_assessment":[{"criterion_id":"c1","assessment":"somewhat_support","explanation":"Mentions solar but focuses on general weather"},{"criterion_id":"c2","assessment":"support","explanation":"Uses neural network methods"}],"summary":"Partially relevant — general weather forecasting"},"classification":"partial","weighted_score":0.5}}
 
 ...
 
 event: done
-data: {"request_id":"req_a1b2c3d4e5f6","status":"completed","total_scanned":10,"perfect_count":3,"partial_count":4,"rejected_count":3,"processing_time_ms":5200}
+data: {"request_id":"req_a1b2c3d4e5f6","status":"completed","total_scanned":15,"perfect_count":3,"partial_count":4,"rejected_count":8,"processing_time_ms":5200}
 ```
 
 **Event Types:**
 
-| Event | When | Payload |
-|-------|------|---------|
-| `criteria` | Planning complete | `request_id`, `query`, `criteria_result` |
-| `result` | Each result verified + classified | `index`, `total`, `scored_result` |
-| `done` | All done | Summary stats (counts, timing) |
-| `error` | Error occurred | `error` message |
+| Event | Emitted | Payload Fields | Description |
+|-------|---------|----------------|-------------|
+| `criteria` | once | `request_id`, `query`, `criteria_result` | Planning complete — contains generated search queries and screening criteria |
+| `search_complete` | once | `total_results`, `search_queries_count`, `results` | Search finished — `results` contains all raw search results (before verification), each with `source_adapter` |
+| `result` | N times | `index`, `total`, `scored_result` or `raw_result` | One result verified — `scored_result` when classify=true (includes `classification` + `weighted_score`), `raw_result` when classify=false |
+| `done` | once | `request_id`, `status`, `total_scanned`, `perfect_count`, `partial_count`, `rejected_count`, `processing_time_ms` | All results processed — final summary statistics |
+| `error` | 0–1 | `request_id`, `error`, `processing_time_ms` | Unrecoverable error — contains error message |
+
+**Client-side handling (JavaScript):**
+
+```javascript
+const resp = await fetch("/v1/search", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    query: "solar nowcasting deep learning",
+    options: { stream: true, max_results: 10 }
+  })
+});
+
+const reader = resp.body.getReader();
+const decoder = new TextDecoder();
+let buffer = "";
+
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+
+  buffer += decoder.decode(value, { stream: true });
+  const parts = buffer.split("\n\n");
+  buffer = parts.pop();
+
+  for (const part of parts) {
+    let eventType = "", dataStr = "";
+    for (const line of part.split("\n")) {
+      if (line.startsWith("event:")) eventType = line.slice(6).trim();
+      else if (line.startsWith("data:")) dataStr = line.slice(5).trim();
+    }
+    if (!eventType || !dataStr) continue;
+    const data = JSON.parse(dataStr);
+
+    switch (eventType) {
+      case "criteria":
+        console.log("Criteria:", data.criteria_result);
+        break;
+      case "search_complete":
+        console.log(`Found ${data.total_results} results, verifying...`);
+        break;
+      case "result":
+        const r = data.scored_result;
+        console.log(`[${r.result.source_adapter}] [${r.classification}] ${r.result.title}`);
+        break;
+      case "done":
+        console.log(`Done: ${data.perfect_count} perfect, ${data.partial_count} partial in ${data.processing_time_ms}ms`);
+        break;
+      case "error":
+        console.error("Error:", data.error);
+        break;
+    }
+  }
+}
+```
+
+**Python SDK (sync):**
+
+```python
+from opensift.client import OpenSiftClient
+
+client = OpenSiftClient("http://localhost:8080")
+for event in client.search_stream("solar nowcasting deep learning"):
+    evt = event["event"]
+    data = event["data"]
+
+    if evt == "criteria":
+        print(f"Queries: {data['criteria_result']['search_queries']}")
+    elif evt == "search_complete":
+        print(f"Found {data['total_results']} results from {len(data['results'])} items")
+    elif evt == "result":
+        r = data["scored_result"]
+        print(f"  [{r['result']['source_adapter']}] [{r['classification']}] {r['result']['title']}")
+    elif evt == "done":
+        print(f"Done: {data['perfect_count']}P / {data['partial_count']}A / {data['rejected_count']}R in {data['processing_time_ms']}ms")
+```
+
+**Python SDK (async):**
+
+```python
+from opensift.client import AsyncOpenSiftClient
+
+async with AsyncOpenSiftClient("http://localhost:8080") as client:
+    async for event in client.search_stream("solar nowcasting"):
+        if event["event"] == "result":
+            r = event["data"]["scored_result"]
+            print(f"[{r['result']['source_adapter']}] {r['result']['title']}")
+```
 
 ### Standalone Plan (Query Planning Only)
 
@@ -256,7 +373,7 @@ curl -X POST http://localhost:8080/v1/search \
   "criteria_result": { ... },
   "raw_results": [
     {
-      "result": { "title": "...", "content": "..." },
+      "result": { "source_adapter": "wikipedia", "title": "...", "content": "..." },
       "validation": {
         "criteria_assessment": [
           { "criterion_id": "c1", "assessment": "support", "explanation": "..." }
@@ -267,6 +384,7 @@ curl -X POST http://localhost:8080/v1/search \
   ],
   "perfect_results": [],
   "partial_results": [],
+  "rejected_results": [],
   "total_scanned": 10
 }
 ```
@@ -392,6 +510,21 @@ search:
       index_pattern: "my_collection"
 ```
 
+### Result Fields
+
+Every result item includes a `source_adapter` field indicating which adapter produced it:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `source_adapter` | `string` | Name of the search adapter that returned this result (e.g. `"wikipedia"`, `"atomwalker"`) |
+| `result_type` | `string` | Result type for prompt template selection (`"paper"`, `"generic"`) |
+| `title` | `string` | Title or heading |
+| `content` | `string` | Main text body (abstract, description, etc.) |
+| `source_url` | `string` | Source URL |
+| `fields` | `object` | Additional domain-specific metadata |
+
+The `source_adapter` field is present in `perfect_results`, `partial_results`, `rejected_results`, `raw_results`, and streaming `result` events. Use it to distinguish results from different backends when multiple adapters are active.
+
 ## Python SDK
 
 OpenSift ships with a Python client library supporting both sync and async modes:
@@ -409,13 +542,13 @@ print(plan["criteria_result"]["criteria"])
 # Complete mode — full search + verification pipeline
 response = client.search("solar nowcasting deep learning")
 for r in response["perfect_results"]:
-    print(r["result"]["title"], r["classification"])
+    print(f"[{r['result']['source_adapter']}] {r['result']['title']} — {r['classification']}")
 
 # Streaming mode — results arrive one by one
 for event in client.search_stream("solar nowcasting deep learning"):
     if event["event"] == "result":
         scored = event["data"]["scored_result"]
-        print(f"[{scored['classification']}] {scored['result']['title']}")
+        print(f"[{scored['result']['source_adapter']}] [{scored['classification']}] {scored['result']['title']}")
 
 # Batch search + CSV export
 batch = client.batch_search(
@@ -444,38 +577,38 @@ async with AsyncOpenSiftClient("http://localhost:8080") as client:
         print(event)
 ```
 
-## Local LLM Support
+## WisModel — Purpose-Built AI for Search Verification
 
-OpenSift's LLM client is compatible with any OpenAI API-compatible service, so you can use locally deployed models like Ollama or vLLM:
+OpenSift is powered exclusively by [WisModel](https://arxiv.org/abs/2512.06879), a model specifically trained for the two core tasks of the search-verification paradigm: **query understanding & criteria generation** and **paper-criteria matching**. WisModel is trained via supervised fine-tuning (SFT) followed by Group Relative Policy Optimization (GRPO) on expert-annotated data spanning 10 academic disciplines (2,777 queries, 5,879 criteria).
 
-**Ollama:**
+### Query Understanding & Criteria Generation
 
-```bash
-# Start Ollama
-ollama serve
-ollama pull qwen2.5:14b
+WisModel significantly outperforms all baseline models (including GPT-5, GPT-4o, DeepSeek-V3.2) in generating search queries and screening criteria from natural language queries:
 
-# Configure OpenSift
-OPENSIFT_AI__PROVIDER=local
-OPENSIFT_AI__API_KEY=ollama
-OPENSIFT_AI__BASE_URL=http://localhost:11434/v1
-OPENSIFT_AI__MODEL_PLANNER=qwen2.5:14b
-OPENSIFT_AI__MODEL_VERIFIER=qwen2.5:14b
-```
+| Model | Semantic Similarity | ROUGE-1 | ROUGE-2 | ROUGE-L | BLEU | Length Ratio |
+|-------|:---:|:---:|:---:|:---:|:---:|:---:|
+| Qwen-Max | 78.1 | 43.2 | 23.1 | 35.8 | 11.8 | 168.9 |
+| GPT-4o | 91.3 | 64.0 | 39.4 | 52.6 | 21.5 | 142.2 |
+| GPT-5 | 87.0 | 53.8 | 27.6 | 41.8 | 13.2 | 163.3 |
+| GLM-4-Flash | 82.2 | 50.0 | 25.8 | 42.1 | 9.9 | 167.1 |
+| GLM-4.6 | 84.8 | 55.5 | 30.2 | 44.5 | 14.4 | 168.1 |
+| DeepSeek-V3.2-Exp | 90.2 | 59.3 | 32.4 | 48.0 | 14.4 | 153.5 |
+| **WisModel** | **94.8** | **74.9** | **54.4** | **67.7** | **39.8** | **98.2** |
 
-**vLLM:**
+### Paper-Criteria Matching (Verification)
 
-```bash
-# Start vLLM
-vllm serve Qwen/Qwen2.5-14B-Instruct --port 8000
+WisModel achieves 93.70% overall accuracy, surpassing the next best model (Gemini3-Pro, 73.23%) by over 20 percentage points. Its advantage is most pronounced on the hardest category, "somewhat support", where baseline models struggle (15.9%-45.0%) while WisModel reaches 91.82%:
 
-# Configure OpenSift
-OPENSIFT_AI__PROVIDER=local
-OPENSIFT_AI__API_KEY=token-abc123
-OPENSIFT_AI__BASE_URL=http://localhost:8000/v1
-OPENSIFT_AI__MODEL_PLANNER=Qwen/Qwen2.5-14B-Instruct
-OPENSIFT_AI__MODEL_VERIFIER=Qwen/Qwen2.5-14B-Instruct
-```
+| Model | insufficient information | reject | somewhat support | support | Overall Accuracy |
+|-------|:---:|:---:|:---:|:---:|:---:|
+| GPT-5.1 | 64.30 | 63.10 | 31.40 | 85.40 | 70.81 |
+| Claude-Sonnet-4.5 | 46.00 | 66.50 | 33.30 | 87.00 | 70.62 |
+| Qwen3-Max | 40.80 | 72.00 | 44.20 | 87.20 | 72.82 |
+| DeepSeek-V3.2 | 57.90 | 49.20 | 45.00 | 87.00 | 66.82 |
+| Gemini3-Pro | 67.40 | 66.80 | 15.90 | 91.10 | 73.23 |
+| **WisModel** | **90.64** | **94.54** | **91.82** | **94.38** | **93.70** |
+
+> WisModel is available via the [WisPaper API Hub](https://wispaper.ai). Contact the team to obtain your API key.
 
 ## Web UI Debug Panel
 
@@ -502,13 +635,57 @@ Features:
 ## Development
 
 ```bash
-make test          # Run tests
+make test          # Run all tests
+make test-unit     # Run unit tests only
 make lint          # Lint (ruff)
 make lint-fix      # Auto-fix lint issues
 make format        # Format code
 make check         # Full CI check (lint + format + typecheck + test)
 make clean         # Clean build artifacts
 ```
+
+### Integration Tests
+
+Integration tests run each adapter against a real search backend via Docker. You can test a single adapter or all of them.
+
+**Test a single adapter** (only starts the required Docker container):
+
+```bash
+make test-es          # Elasticsearch
+make test-opensearch  # OpenSearch
+make test-solr        # Solr
+make test-meili       # MeiliSearch
+make test-wikipedia   # Wikipedia (no Docker needed)
+
+# Or use the generic form:
+make test-adapter ADAPTER=elasticsearch
+```
+
+**Test all adapters at once:**
+
+```bash
+make test-backends-up    # Start all 4 Docker backends
+make test-integration    # Run all integration tests
+make test-backends-down  # Stop and remove containers
+```
+
+You can also use pytest markers directly:
+
+```bash
+# Single adapter
+pytest tests/integration/ -m elasticsearch
+
+# Multiple adapters
+pytest tests/integration/ -m "solr or meilisearch"
+```
+
+| Adapter | Docker Image | Port | Marker |
+|---------|-------------|------|--------|
+| Elasticsearch | `elasticsearch:8.17.0` | 9200 | `elasticsearch` |
+| OpenSearch | `opensearch:2.18.0` | 9201 | `opensearch` |
+| Solr | `solr:9.7` | 8983 | `solr` |
+| MeiliSearch | `meilisearch:v1.12` | 7700 | `meilisearch` |
+| Wikipedia | *(live API)* | — | `wikipedia` |
 
 ## Configuration Reference
 
@@ -522,10 +699,10 @@ OpenSift supports three layers of configuration (highest to lowest priority):
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `OPENSIFT_AI__API_KEY` | WisModel / LLM API Key | — |
-| `OPENSIFT_AI__BASE_URL` | LLM API URL (OpenAI compatible) | WisModel endpoint |
-| `OPENSIFT_AI__MODEL_PLANNER` | Query planning model | `WisModel-20251110` |
-| `OPENSIFT_AI__MODEL_VERIFIER` | Result verification model | `WisModel-20251110` |
+| `OPENSIFT_AI__API_KEY` | WisModel API Key | — |
+| `OPENSIFT_AI__BASE_URL` | WisModel API endpoint | WisPaper API Hub |
+| `OPENSIFT_AI__MODEL_PLANNER` | WisModel version for planning | `WisModel-20251110` |
+| `OPENSIFT_AI__MODEL_VERIFIER` | WisModel version for verification | `WisModel-20251110` |
 | `OPENSIFT_SEARCH__DEFAULT_ADAPTER` | Default search backend | `atomwalker` |
 
 ## Docker
@@ -549,9 +726,22 @@ docker-compose -f deployments/docker/docker-compose.dev.yml up
 - [x] Streaming output (SSE)
 - [x] Python SDK (sync + async)
 - [x] Batch search with export (CSV / JSON)
-- [x] Local LLM support (Ollama, vLLM)
 - [x] Web UI debug panel
 - [x] More search backend adapters (OpenSearch, Solr, MeiliSearch, Wikipedia)
+- [x] Docker-based integration tests for all adapters
+
+## Citation
+
+If you use OpenSift or the search-verification paradigm in your research, please cite the WisPaper paper:
+
+```bibtex
+@article{ju2025wispaper,
+  title={WisPaper: Your AI Scholar Search Engine},
+  author={Li Ju and Jun Zhao and Mingxu Chai and Ziyu Shen and Xiangyang Wang and Yage Geng and Chunchun Ma and Hao Peng and Guangbin Li and Tao Li and Chengyong Liao and Fu Wang and Xiaolong Wang and Junshen Chen and Rui Gong and Shijia Liang and Feiyan Li and Ming Zhang and Kexin Tan and Jujie Ye and Zhiheng Xi and Shihan Dou and Tao Gui and Yuankai Ying and Yang Shi and Yue Zhang and Qi Zhang},
+  journal={arXiv preprint arXiv:2512.06879},
+  year={2025}
+}
+```
 
 ## License
 
@@ -559,4 +749,4 @@ docker-compose -f deployments/docker/docker-compose.dev.yml up
 
 ---
 
-**OpenSift** — Inject AI intelligence into your existing search systems.
+**OpenSift** — Born from [WisPaper](https://wispaper.ai), built for every search engine. Inject AI intelligence into your existing search systems.

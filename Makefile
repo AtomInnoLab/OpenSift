@@ -1,4 +1,6 @@
-.PHONY: help install dev-setup test lint format typecheck clean docker-up docker-down run
+.PHONY: help install dev-setup test lint format typecheck clean docker-up docker-down run \
+       test-integration test-adapter test-backends-up test-backends-down \
+       test-es test-opensearch test-solr test-meili test-wikipedia
 
 # Default target
 help: ## Show this help message
@@ -37,8 +39,61 @@ test: ## Run all tests
 test-unit: ## Run unit tests only
 	poetry run pytest tests/unit/ -v -m "not integration"
 
-test-integration: ## Run integration tests only
+test-integration: ## Run all integration tests (requires Docker backends)
 	poetry run pytest tests/integration/ -v -m integration
+
+# ─── Per-adapter targets ─────────────────────────────────
+# Usage:  make test-es         — start Elasticsearch + run its tests
+#         make test-opensearch  — start OpenSearch    + run its tests
+#         make test-solr        — start Solr          + run its tests
+#         make test-meili       — start MeiliSearch   + run its tests
+#         make test-wikipedia   — run Wikipedia tests (no Docker needed)
+#
+# Generic:  make test-adapter ADAPTER=elasticsearch
+
+COMPOSE_FILE := deployments/docker/docker-compose.test.yml
+
+test-adapter: ## Run one adapter's tests: make test-adapter ADAPTER=elasticsearch
+ifndef ADAPTER
+	$(error ADAPTER is required. Use: elasticsearch, opensearch, solr, meilisearch, wikipedia)
+endif
+ifeq ($(ADAPTER),wikipedia)
+	poetry run pytest tests/integration/test_wikipedia.py -v -m wikipedia
+else
+	@echo "Starting $(ADAPTER)..."
+	docker compose -f $(COMPOSE_FILE) up -d $(ADAPTER)
+	@echo "Waiting for $(ADAPTER) to become healthy..."
+	@until docker compose -f $(COMPOSE_FILE) ps $(ADAPTER) --format '{{.Status}}' | grep -q healthy; do sleep 2; done
+	@echo "$(ADAPTER) is ready. Running tests..."
+	poetry run pytest tests/integration/test_$(ADAPTER).py -v -m $(ADAPTER)
+endif
+
+test-es: ## Start Elasticsearch + run its tests
+	@$(MAKE) test-adapter ADAPTER=elasticsearch
+
+test-opensearch: ## Start OpenSearch + run its tests
+	@$(MAKE) test-adapter ADAPTER=opensearch
+
+test-solr: ## Start Solr + run its tests
+	@$(MAKE) test-adapter ADAPTER=solr
+
+test-meili: ## Start MeiliSearch + run its tests
+	@$(MAKE) test-adapter ADAPTER=meilisearch
+
+test-wikipedia: ## Run Wikipedia tests (no Docker needed)
+	poetry run pytest tests/integration/test_wikipedia.py -v -m wikipedia
+
+test-backends-up: ## Start all search backends for integration tests
+	docker compose -f $(COMPOSE_FILE) up -d
+	@echo "Waiting for all backends to be ready..."
+	@until docker compose -f $(COMPOSE_FILE) ps --format '{{.Status}}' | grep -v healthy | grep -qv STATUS || true; do sleep 2; done
+	@echo "  Elasticsearch: http://localhost:9200"
+	@echo "  OpenSearch:    http://localhost:9201"
+	@echo "  Solr:          http://localhost:8983"
+	@echo "  MeiliSearch:   http://localhost:7700"
+
+test-backends-down: ## Stop search backends and remove volumes
+	docker compose -f $(COMPOSE_FILE) down -v
 
 test-cov: ## Run tests with coverage report
 	poetry run pytest tests/ --cov=opensift --cov-report=html --cov-report=term-missing

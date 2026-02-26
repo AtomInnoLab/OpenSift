@@ -19,14 +19,14 @@ class TestQueryPlanner:
 
     @pytest.mark.asyncio
     async def test_simple_plan_no_decomposition(self, planner: QueryPlanner) -> None:
-        """When decompose=False, returns the original query as-is."""
+        """When decompose=False, returns multiple query variations."""
         request = SearchRequest(
             query="solar nowcasting",
             options=SearchOptions(decompose=False),
         )
         result = await planner.plan(request)
         assert isinstance(result, CriteriaResult)
-        assert len(result.search_queries) == 1
+        assert len(result.search_queries) >= 2
         assert result.search_queries[0] == "solar nowcasting"
         assert len(result.criteria) == 1
         assert result.criteria[0].weight == 1.0
@@ -89,8 +89,21 @@ class TestQueryPlanner:
         assert abs(total - 1.0) < 0.01
 
     def test_create_simple_result(self) -> None:
-        """Test the fallback simple result."""
+        """Test the fallback simple result generates >= 2 queries."""
         result = QueryPlanner._create_simple_result("test query")
-        assert result.search_queries == ["test query"]
+        assert len(result.search_queries) >= 2
+        assert result.search_queries[0] == "test query"
         assert len(result.criteria) == 1
         assert result.criteria[0].weight == 1.0
+
+    def test_create_simple_result_long_query(self) -> None:
+        """A multi-word query should split into prefix and suffix sub-queries."""
+        result = QueryPlanner._create_simple_result("deep learning for solar nowcasting")
+        assert len(result.search_queries) >= 2
+        assert result.search_queries[0] == "deep learning for solar nowcasting"
+
+    def test_create_simple_result_single_word(self) -> None:
+        """A single-word query should still produce >= 2 variations."""
+        result = QueryPlanner._create_simple_result("transformers")
+        assert len(result.search_queries) >= 2
+        assert result.search_queries[0] == "transformers"

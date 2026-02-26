@@ -14,31 +14,11 @@ server:
     - "*"
 
 ai:
-  # Default: WisModel — specifically trained for query planning & verification
-  provider: "wismodel"
-  api_key: "wsk_4c5bc16a13064ca8aadefe9a05290634"
+  # WisModel — the only supported LLM, specifically trained for query planning & verification
+  api_key: "your-wismodel-api-key"
   base_url: "http://wis-apihub-v2.dev.atominnolab.com/api/v1/resource/WisModel/v1"
   model_planner: "WisModel-20251110"     # query planning & criteria generation
   model_verifier: "WisModel-20251110"    # result verification against criteria
-  # To use OpenAI or other OpenAI-compatible providers instead:
-  # provider: "openai"
-  # api_key: "sk-your-openai-key"
-  # base_url: "https://api.openai.com/v1"
-  # model_planner: "gpt-4o-mini"
-  # model_verifier: "gpt-4o-mini"
-  # For local models via Ollama:
-  # provider: "local"
-  # api_key: "ollama"                       # Ollama ignores API key but field is required
-  # base_url: "http://localhost:11434/v1"
-  # model_planner: "qwen2.5:14b"
-  # model_verifier: "qwen2.5:14b"
-  # For local models via vLLM:
-  # provider: "local"
-  # api_key: "token-abc123"
-  # base_url: "http://localhost:8000/v1"
-  # model_planner: "Qwen/Qwen2.5-14B-Instruct"
-  # model_verifier: "Qwen/Qwen2.5-14B-Instruct"
-  fallback_to_local: true
   max_tokens: 4096
   temperature: 0.1
 

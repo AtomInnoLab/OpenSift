@@ -67,8 +67,7 @@ class AdapterRegistry:
         """
         if name not in self._classes:
             raise AdapterNotFoundError(
-                f"No adapter registered with name '{name}'. "
-                f"Available adapters: {list(self._classes.keys())}"
+                f"No adapter registered with name '{name}'. Available adapters: {list(self._classes.keys())}"
             )
 
         adapter_class = self._classes[name]
@@ -91,10 +90,7 @@ class AdapterRegistry:
             AdapterNotFoundError: If the adapter is not initialized.
         """
         if name not in self._instances:
-            raise AdapterNotFoundError(
-                f"Adapter '{name}' is not initialized. "
-                f"Call initialize_adapter() first."
-            )
+            raise AdapterNotFoundError(f"Adapter '{name}' is not initialized. Call initialize_adapter() first.")
         return self._instances[name]
 
     def get_default(self) -> SearchAdapter:
@@ -109,6 +105,33 @@ class AdapterRegistry:
         if not self._instances:
             raise AdapterNotFoundError("No adapters are initialized.")
         return next(iter(self._instances.values()))
+
+    def get_adapters(self, names: list[str] | None = None) -> list[SearchAdapter]:
+        """Get adapters by name, or all initialized adapters if *names* is None.
+
+        Args:
+            names: Adapter names to retrieve. ``None`` returns all active adapters.
+
+        Returns:
+            List of adapter instances.
+
+        Raises:
+            AdapterNotFoundError: If no matching adapters are found.
+        """
+        if names is None:
+            adapters = list(self._instances.values())
+        else:
+            adapters = []
+            for name in names:
+                if name in self._instances:
+                    adapters.append(self._instances[name])
+                else:
+                    logger.warning("Requested adapter '%s' is not initialized, skipping", name)
+        if not adapters:
+            raise AdapterNotFoundError(
+                f"No matching adapters found. Requested: {names}, available: {list(self._instances.keys())}"
+            )
+        return adapters
 
     async def health_check_all(self) -> dict[str, AdapterHealth]:
         """Run health checks on all initialized adapters.

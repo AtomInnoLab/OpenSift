@@ -24,8 +24,14 @@ router = APIRouter()
         "Execute multiple search queries in a single request. Each query "
         "goes through the full filtering funnel (planning → search → "
         "verification → classification). Optionally export results to "
-        "CSV or JSON format."
+        "CSV or JSON format.\n\n"
+        "Supports up to 20 queries per batch. Each query runs independently; "
+        "a failure in one query does not affect others."
     ),
+    responses={
+        422: {"description": "Validation error — invalid request body (empty queries, bad options, etc.)"},
+        500: {"description": "Internal server error — batch processing failed"},
+    },
 )
 async def batch_search(
     request: BatchSearchRequest,

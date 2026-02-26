@@ -68,6 +68,10 @@ class SearchResponse(BaseModel):
         default_factory=list,
         description="Results with partial matches (classify=true)",
     )
+    rejected_results: list[ScoredResult] = Field(
+        default_factory=list,
+        description="Results that did not meet criteria (classify=true)",
+    )
     rejected_count: int = Field(
         default=0,
         description="Number of results that did not meet criteria (classify=true)",

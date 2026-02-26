@@ -1,0 +1,111 @@
+site_name: OpenSift
+site_url: https://atominnolab.github.io/OpenSift
+site_description: Open-source AI augmentation layer for search engines
+site_author: OpenSift Team
+repo_url: https://github.com/AtomInnoLab/OpenSift
+repo_name: AtomInnoLab/OpenSift
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; 2025 OpenSift Team — Apache License 2.0
+
+theme:
+  name: material
+  language: en
+  logo: assets/logo.png
+  favicon: assets/favicon.png
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - toc.follow
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+            show_root_heading: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/AtomInnoLab/OpenSift
+    - icon: fontawesome/solid/globe
+      link: https://wispaper.ai
+    - icon: fontawesome/solid/file-lines
+      link: https://arxiv.org/abs/2512.06879
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Quick Start: guide/quickstart.md
+    - Configuration: guide/configuration.md
+  - API Reference:
+    - Search API: api/search.md
+    - Plan API: api/plan.md
+    - Batch API: api/batch.md
+    - Health API: api/health.md
+  - Adapters:
+    - Overview: adapters/overview.md
+    - Elasticsearch: adapters/elasticsearch.md
+    - OpenSearch: adapters/opensearch.md
+    - Solr: adapters/solr.md
+    - MeiliSearch: adapters/meilisearch.md
+    - Wikipedia: adapters/wikipedia.md
+    - Custom Adapter: adapters/custom.md
+  - Python SDK: sdk.md
+  - Architecture: architecture.md
+  - Development:
+    - Contributing: development/contributing.md
+    - Testing: development/testing.md
+  - WisModel: wismodel.md
