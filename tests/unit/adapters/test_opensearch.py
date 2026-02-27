@@ -66,7 +66,10 @@ class TestOpenSearchInitialization:
         from opensift.adapters.base.exceptions import ConfigurationError
 
         adapter = OpenSearchAdapter()
-        with patch.dict("sys.modules", {"opensearchpy": None}), pytest.raises((ConfigurationError, ModuleNotFoundError)):
+        with (
+            patch.dict("sys.modules", {"opensearchpy": None}),
+            pytest.raises((ConfigurationError, ModuleNotFoundError)),
+        ):
             await adapter.initialize()
 
     async def test_shutdown_closes_client(self) -> None:

@@ -111,9 +111,7 @@ class TestMeiliSearchSearch:
         with pytest.raises(ConnectionError, match="not initialized"):
             await adapter.search("test", SearchOptions())
 
-    async def test_search_returns_results(
-        self, adapter: MeiliSearchAdapter, sample_meili_response: dict
-    ) -> None:
+    async def test_search_returns_results(self, adapter: MeiliSearchAdapter, sample_meili_response: dict) -> None:
         mock_response = AsyncMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = sample_meili_response

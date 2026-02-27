@@ -103,9 +103,7 @@ def sample_api_response() -> dict[str, Any]:
                 "title": "Structure of the lysosomal mTORC1–TFEB–Rag–Ragulator megacomplex",
                 "authors": "Zhicheng Cui, Gennaro Napolitano, James H. Hurley",
                 "authors_list": ["Zhicheng Cui", "Gennaro Napolitano", "James H. Hurley"],
-                "abstract_text": (
-                    "The transcription factor TFEB is a master regulator of lysosomal biogenesis."
-                ),
+                "abstract_text": ("The transcription factor TFEB is a master regulator of lysosomal biogenesis."),
                 "abstract_contents": None,
                 "id": "1152921508924799708",
                 "affiliations": "QB3; University of California, Berkeley",
@@ -248,9 +246,7 @@ class TestMapToPaper:
         assert "COMPUTER SCIENCE" in paper.conference_journal_type
         assert "SCIE" in paper.conference_journal_type
 
-    def test_map_paper_research_field_from_fqb_jcr(
-        self, adapter: AtomWalkerAdapter, sample_api_response: dict
-    ) -> None:
+    def test_map_paper_research_field_from_fqb_jcr(self, adapter: AtomWalkerAdapter, sample_api_response: dict) -> None:
         """When research_field is null, fall back to fqb_jcr categories."""
         raw_paper = sample_api_response["papers"][0]
         paper = adapter.map_to_paper(raw_paper)
@@ -333,9 +329,7 @@ class TestAtomWalkerSearch:
             await adapter.search("rag", SearchOptions())
 
     @pytest.mark.asyncio
-    async def test_search_returns_raw_results(
-        self, adapter: AtomWalkerAdapter, sample_api_response: dict
-    ) -> None:
+    async def test_search_returns_raw_results(self, adapter: AtomWalkerAdapter, sample_api_response: dict) -> None:
         await adapter.initialize()
 
         mock_response = MagicMock()

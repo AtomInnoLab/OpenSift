@@ -117,9 +117,7 @@ class TestSolrSearch:
         with pytest.raises(ConnectionError, match="not initialized"):
             await adapter.search("test", SearchOptions())
 
-    async def test_search_returns_results(
-        self, adapter: SolrAdapter, sample_solr_response: dict
-    ) -> None:
+    async def test_search_returns_results(self, adapter: SolrAdapter, sample_solr_response: dict) -> None:
         mock_response = AsyncMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = sample_solr_response

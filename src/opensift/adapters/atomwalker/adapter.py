@@ -72,8 +72,7 @@ class AtomWalkerAdapter(SearchAdapter):
         """Initialize the HTTP client."""
         if not self._api_key:
             raise ConfigurationError(
-                "AtomWalker API key is required. "
-                "Set it via adapter config: adapters.atomwalker.api_key"
+                "AtomWalker API key is required. Set it via adapter config: adapters.atomwalker.api_key"
             )
 
         self._client = httpx.AsyncClient(

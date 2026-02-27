@@ -198,9 +198,7 @@ class SolrAdapter(SearchAdapter):
         """
         doc_id = str(raw_result.get("id", ""))
         title = self._first_value(raw_result.get("title", "Untitled"))
-        content = self._first_value(
-            raw_result.get("content", raw_result.get("body", raw_result.get("text", "")))
-        )
+        content = self._first_value(raw_result.get("content", raw_result.get("body", raw_result.get("text", ""))))
 
         # Build snippet from highlighting
         hl = raw_result.get("_highlighting", {})

@@ -38,9 +38,7 @@ class ValidationResult(BaseModel):
     Produced by the Verifier for each result item.
     """
 
-    criteria_assessment: list[CriterionAssessment] = Field(
-        description="Per-criterion assessment results"
-    )
+    criteria_assessment: list[CriterionAssessment] = Field(description="Per-criterion assessment results")
     summary: str = Field(description="Overall summary: result content + alignment with user query")
 
 

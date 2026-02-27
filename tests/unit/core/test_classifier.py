@@ -137,9 +137,7 @@ class TestMultiCriterionClassification:
         assert result.classification == ResultClassification.PERFECT
         assert result.weighted_score == 1.0
 
-    def test_one_support_one_reject_is_partial(
-        self, item: ResultItem, multi_criteria: list[Criterion]
-    ) -> None:
+    def test_one_support_one_reject_is_partial(self, item: ResultItem, multi_criteria: list[Criterion]) -> None:
         """One support + one reject → partial (non-time type has support)."""
         validation = ValidationResult(
             criteria_assessment=[
@@ -220,7 +218,9 @@ class TestClassifyBatch:
             ),
             ValidationResult(
                 criteria_assessment=[
-                    CriterionAssessment(criterion_id="criterion_1", assessment=AssessmentType.SUPPORT, explanation="yes")
+                    CriterionAssessment(
+                        criterion_id="criterion_1", assessment=AssessmentType.SUPPORT, explanation="yes"
+                    )
                 ],
                 summary="perfect",
             ),

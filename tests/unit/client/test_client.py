@@ -127,7 +127,18 @@ class TestAsyncOpenSiftClient:
 
         async def _mock_stream(_request):
             yield StreamEvent(event="criteria", data={"request_id": "req", "query": "q", "criteria_result": {}})
-            yield StreamEvent(event="done", data={"request_id": "req", "status": "completed", "total_scanned": 0, "perfect_count": 0, "partial_count": 0, "rejected_count": 0, "processing_time_ms": 1})
+            yield StreamEvent(
+                event="done",
+                data={
+                    "request_id": "req",
+                    "status": "completed",
+                    "total_scanned": 0,
+                    "perfect_count": 0,
+                    "partial_count": 0,
+                    "rejected_count": 0,
+                    "processing_time_ms": 1,
+                },
+            )
 
         with patch.object(engine, "search_stream", side_effect=_mock_stream):
             events: list[dict] = []

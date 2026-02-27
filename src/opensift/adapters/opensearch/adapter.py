@@ -81,8 +81,7 @@ class OpenSearchAdapter(SearchAdapter):
             from opensearchpy import AsyncOpenSearch
         except ImportError as e:
             raise ConfigurationError(
-                "opensearch-py package is required.  "
-                "Install with: pip install opensift[opensearch]"
+                "opensearch-py package is required.  Install with: pip install opensift[opensearch]"
             ) from e
 
         client_kwargs: dict[str, Any] = {
@@ -253,8 +252,4 @@ class OpenSearchAdapter(SearchAdapter):
             return None
 
         es_unit = mapping[unit]
-        return {
-            "range": {
-                "@timestamp": {"gte": f"now-{value}{recency[-1]}/{es_unit}"}
-            }
-        }
+        return {"range": {"@timestamp": {"gte": f"now-{value}{recency[-1]}/{es_unit}"}}}

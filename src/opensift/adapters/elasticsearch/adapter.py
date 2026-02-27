@@ -73,8 +73,7 @@ class ElasticsearchAdapter(SearchAdapter):
             from elasticsearch import AsyncElasticsearch
         except ImportError as e:
             raise ConfigurationError(
-                "elasticsearch package is required. "
-                "Install it with: pip install opensift[elasticsearch]"
+                "elasticsearch package is required. Install it with: pip install opensift[elasticsearch]"
             ) from e
 
         client_kwargs: dict[str, Any] = {

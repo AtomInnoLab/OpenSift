@@ -142,7 +142,18 @@ class TestSearchStream:
     def test_stream_returns_sse_content_type(self, client: TestClient, engine: OpenSiftEngine) -> None:
         async def _mock_stream(_request):
             yield StreamEvent(event="criteria", data={"request_id": "req_test", "query": "test", "criteria_result": {}})
-            yield StreamEvent(event="done", data={"request_id": "req_test", "status": "completed", "total_scanned": 0, "perfect_count": 0, "partial_count": 0, "rejected_count": 0, "processing_time_ms": 50})
+            yield StreamEvent(
+                event="done",
+                data={
+                    "request_id": "req_test",
+                    "status": "completed",
+                    "total_scanned": 0,
+                    "perfect_count": 0,
+                    "partial_count": 0,
+                    "rejected_count": 0,
+                    "processing_time_ms": 50,
+                },
+            )
 
         with patch.object(engine, "search_stream", side_effect=_mock_stream):
             resp = client.post(
@@ -161,9 +172,23 @@ class TestSearchStream:
         scored = _mock_scored_result()
 
         async def _mock_stream(_request):
-            yield StreamEvent(event="criteria", data={"request_id": "req_s", "query": "q", "criteria_result": _mock_criteria_result().model_dump()})
+            yield StreamEvent(
+                event="criteria",
+                data={"request_id": "req_s", "query": "q", "criteria_result": _mock_criteria_result().model_dump()},
+            )
             yield StreamEvent(event="result", data={"index": 1, "total": 1, "scored_result": scored.model_dump()})
-            yield StreamEvent(event="done", data={"request_id": "req_s", "status": "completed", "total_scanned": 1, "perfect_count": 1, "partial_count": 0, "rejected_count": 0, "processing_time_ms": 100})
+            yield StreamEvent(
+                event="done",
+                data={
+                    "request_id": "req_s",
+                    "status": "completed",
+                    "total_scanned": 1,
+                    "perfect_count": 1,
+                    "partial_count": 0,
+                    "rejected_count": 0,
+                    "processing_time_ms": 100,
+                },
+            )
 
         with patch.object(engine, "search_stream", side_effect=_mock_stream):
             resp = client.post(
@@ -339,9 +364,23 @@ class TestSearchClassifyFalse:
         )
 
         async def _mock_stream(_request):
-            yield StreamEvent(event="criteria", data={"request_id": "req_r", "query": "q", "criteria_result": _mock_criteria_result().model_dump()})
+            yield StreamEvent(
+                event="criteria",
+                data={"request_id": "req_r", "query": "q", "criteria_result": _mock_criteria_result().model_dump()},
+            )
             yield StreamEvent(event="result", data={"index": 1, "total": 1, "raw_result": raw.model_dump()})
-            yield StreamEvent(event="done", data={"request_id": "req_r", "status": "completed", "total_scanned": 1, "perfect_count": 0, "partial_count": 0, "rejected_count": 0, "processing_time_ms": 50})
+            yield StreamEvent(
+                event="done",
+                data={
+                    "request_id": "req_r",
+                    "status": "completed",
+                    "total_scanned": 1,
+                    "perfect_count": 0,
+                    "partial_count": 0,
+                    "rejected_count": 0,
+                    "processing_time_ms": 50,
+                },
+            )
 
         with patch.object(engine, "search_stream", side_effect=_mock_stream):
             resp = client.post(

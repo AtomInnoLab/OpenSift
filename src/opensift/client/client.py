@@ -323,21 +323,27 @@ class OpenSiftClient:
 
     def _make_client(self) -> AsyncOpenSiftClient:
         return AsyncOpenSiftClient(
-            self._base_url, timeout=self._timeout, **self._httpx_kwargs,
+            self._base_url,
+            timeout=self._timeout,
+            **self._httpx_kwargs,
         )
 
     def health(self) -> dict[str, Any]:
         """Check server health."""
+
         async def _call() -> dict[str, Any]:
             async with self._make_client() as c:
                 return await c.health()
+
         return self._run(_call())
 
     def adapter_health(self) -> dict[str, Any]:
         """Check adapter health."""
+
         async def _call() -> dict[str, Any]:
             async with self._make_client() as c:
                 return await c.adapter_health()
+
         return self._run(_call())
 
     def plan(
@@ -347,9 +353,11 @@ class OpenSiftClient:
         decompose: bool = True,
     ) -> PlanResult:
         """Generate search queries and screening criteria (plan only)."""
+
         async def _call() -> PlanResult:
             async with self._make_client() as c:
                 return await c.plan(query, decompose=decompose)
+
         return self._run(_call())
 
     def search(
@@ -363,12 +371,18 @@ class OpenSiftClient:
         **extra_options: Any,
     ) -> SearchResult:
         """Execute an AI-enhanced search (complete mode)."""
+
         async def _call() -> SearchResult:
             async with self._make_client() as c:
                 return await c.search(
-                    query, max_results=max_results, verify=verify,
-                    decompose=decompose, classify=classify, **extra_options,
+                    query,
+                    max_results=max_results,
+                    verify=verify,
+                    decompose=decompose,
+                    classify=classify,
+                    **extra_options,
                 )
+
         return self._run(_call())
 
     def search_stream(
@@ -385,15 +399,21 @@ class OpenSiftClient:
 
         Returns an iterator of SSE events.
         """
+
         async def _collect() -> list[StreamEvent]:
             events: list[StreamEvent] = []
             async with self._make_client() as c:
                 async for ev in c.search_stream(
-                    query, max_results=max_results, verify=verify,
-                    decompose=decompose, classify=classify, **extra_options,
+                    query,
+                    max_results=max_results,
+                    verify=verify,
+                    decompose=decompose,
+                    classify=classify,
+                    **extra_options,
                 ):
                     events.append(ev)
             return events
+
         return iter(self._run(_collect()))
 
     def batch_search(
@@ -408,13 +428,19 @@ class OpenSiftClient:
         **extra_options: Any,
     ) -> BatchResult:
         """Execute multiple search queries in a single batch."""
+
         async def _call() -> BatchResult:
             async with self._make_client() as c:
                 return await c.batch_search(
-                    queries, max_results=max_results, verify=verify,
-                    decompose=decompose, classify=classify,
-                    export_format=export_format, **extra_options,
+                    queries,
+                    max_results=max_results,
+                    verify=verify,
+                    decompose=decompose,
+                    classify=classify,
+                    export_format=export_format,
+                    **extra_options,
                 )
+
         return self._run(_call())
 
 
@@ -434,9 +460,9 @@ async def _parse_sse_stream(response: httpx.Response) -> AsyncIterator[StreamEve
 
     async for line in response.aiter_lines():
         if line.startswith("event:"):
-            event_type = line[len("event:"):].strip()
+            event_type = line[len("event:") :].strip()
         elif line.startswith("data:"):
-            data_lines.append(line[len("data:"):].strip())
+            data_lines.append(line[len("data:") :].strip())
         elif line == "" and event_type:
             # Empty line = end of event
             raw_data = "\n".join(data_lines)
