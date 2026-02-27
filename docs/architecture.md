@@ -1,7 +1,7 @@
 # Architecture
 
 <p align="center">
-  <img src="architecture.jpg" alt="OpenSift Architecture" width="700" />
+  <img src="../architecture.jpg" alt="OpenSift Architecture" width="700" />
 </p>
 
 ## Pipeline Overview

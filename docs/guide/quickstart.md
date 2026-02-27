@@ -53,7 +53,7 @@ OPENSIFT_SEARCH__ADAPTERS__ATOMWALKER__API_KEY=wsk_xxxxx
 ```
 
 !!! tip "WisModel API Key"
-    WisModel is available via the [WisPaper API Hub](https://wispaper.ai). Contact the team to obtain your API key.
+    WisModel is available via the [WisPaper API Hub](https://wispaper.ai?utm_source=opensift). Contact the team to obtain your API key.
 
 ## Start the Server
 
@@ -75,7 +75,8 @@ The server starts at:
 
 | Endpoint | URL |
 |----------|-----|
-| API | `http://localhost:8080` |
+| Search UI | `http://localhost:8080` |
+| API | `http://localhost:8080/v1/search` |
 | Docs (Swagger) | `http://localhost:8080/docs` |
 | Debug Panel | `http://localhost:8080/debug` |
 

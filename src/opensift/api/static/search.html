@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenSift — AI-Enhanced Search</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --bg-card: #1a1d27;
+  --bg-input: #141620;
+  --border: #2a2d3a;
+  --border-focus: #6366f1;
+  --text: #e2e8f0;
+  --text-muted: #8b92a5;
+  --text-dim: #5a6175;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --green: #22c55e;
+  --green-bg: rgba(34,197,94,0.10);
+  --green-border: rgba(34,197,94,0.25);
+  --yellow: #eab308;
+  --yellow-bg: rgba(234,179,8,0.10);
+  --yellow-border: rgba(234,179,8,0.25);
+  --red: #ef4444;
+  --red-bg: rgba(239,68,68,0.08);
+  --red-border: rgba(239,68,68,0.2);
+  --blue: #3b82f6;
+  --blue-bg: rgba(59,130,246,0.1);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 2px 16px rgba(0,0,0,0.3);
+  --mono: 'SF Mono', 'Fira Code', monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; scroll-behavior: smooth; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+
+/* ── Landing (center search) ─────────────── */
+.landing {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 80vh; padding: 2rem; transition: min-height 0.5s;
+}
+.landing.compact { min-height: auto; padding: 1.5rem 2rem 0; justify-content: flex-start; }
+
+.logo { margin-bottom: 1.5rem; text-align: center; transition: all 0.4s; }
+.logo h1 { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.03em; }
+.logo h1 .accent { color: var(--accent); }
+.logo p { color: var(--text-muted); font-size: 1rem; margin-top: 0.4rem; }
+.compact .logo h1 { font-size: 1.4rem; }
+.compact .logo p { display: none; }
+
+/* ── Search Box ──────────────────────────── */
+.search-wrap {
+  width: 100%; max-width: 700px; display: flex; gap: 0.5rem;
+  transition: max-width 0.4s;
+}
+.compact .search-wrap { max-width: 800px; }
+.search-input {
+  flex: 1; padding: 0.85rem 1.2rem; border-radius: var(--radius); border: 1px solid var(--border);
+  background: var(--bg-input); color: var(--text); font-size: 1rem; outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+.search-input::placeholder { color: var(--text-dim); }
+.search-btn {
+  padding: 0 1.8rem; border-radius: var(--radius); border: none;
+  background: var(--accent); color: #fff; font-size: 0.95rem; font-weight: 600;
+  cursor: pointer; transition: background 0.2s; white-space: nowrap;
+}
+.search-btn:hover { background: var(--accent-hover); }
+.search-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.search-hints {
+  display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.8rem; justify-content: center;
+}
+.hint-pill {
+  padding: 0.3rem 0.8rem; border-radius: 16px; font-size: 0.78rem;
+  background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted);
+  cursor: pointer; transition: all 0.2s;
+}
+.hint-pill:hover { border-color: var(--accent); color: var(--text); }
+.compact .search-hints { display: none; }
+
+/* ── Results Area ────────────────────────── */
+.results-area { max-width: 900px; margin: 0 auto; padding: 1.5rem 2rem 4rem; display: none; }
+.results-area.visible { display: block; }
+
+/* Pipeline */
+.pipeline {
+  display: flex; align-items: center; justify-content: center; gap: 0;
+  margin-bottom: 1.5rem; flex-wrap: wrap;
+}
+.pipe-step {
+  display: flex; align-items: center; gap: 0.35rem;
+  padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+  background: var(--bg-card); border: 1px solid var(--border); color: var(--text-dim);
+  transition: all 0.4s;
+}
+.pipe-step.active { border-color: var(--accent); color: var(--accent); background: rgba(99,102,241,0.08); }
+.pipe-step.done { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+.pipe-step.error { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+.pipe-arrow { color: var(--text-dim); font-size: 0.85rem; margin: 0 0.25rem; }
+.pipe-step .sub { font-weight: 400; color: var(--text-dim); margin-left: 0.3rem; font-size: 0.72rem; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+.pipe-step.active { animation: pulse 1s infinite; }
+
+/* Summary bar */
+.summary-bar {
+  display: flex; align-items: center; gap: 1rem; padding: 0.8rem 1.2rem;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  margin-bottom: 1rem; flex-wrap: wrap;
+}
+.stat { display: flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; }
+.stat .num { font-weight: 700; font-size: 1rem; }
+.stat.perfect .num { color: var(--green); }
+.stat.partial .num { color: var(--yellow); }
+.stat.reject .num { color: var(--red); }
+.stat.scanned .num { color: var(--blue); }
+.stat .lbl { color: var(--text-muted); }
+.stat-time { margin-left: auto; font-size: 0.8rem; color: var(--text-dim); }
+
+/* Criteria (collapsible) */
+.criteria-section {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  margin-bottom: 1rem; overflow: hidden;
+}
+.criteria-header {
+  padding: 0.6rem 1rem; cursor: pointer; display: flex; align-items: center;
+  justify-content: space-between; font-size: 0.82rem; font-weight: 600; color: var(--accent);
+  user-select: none;
+}
+.criteria-header:hover { background: rgba(99,102,241,0.05); }
+.criteria-body { display: none; padding: 0 1rem 0.8rem; }
+.criteria-body.open { display: block; }
+.crit-item { padding: 0.3rem 0; font-size: 0.8rem; }
+.crit-item .cname { color: var(--text); font-weight: 600; }
+.crit-item .cdesc { color: var(--text-muted); }
+.crit-item .cw { color: var(--text-dim); font-size: 0.72rem; }
+.search-queries { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; }
+.search-queries code {
+  padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem;
+  background: var(--bg-input); border: 1px solid var(--border); color: var(--accent);
+  font-family: var(--mono);
+}
+
+/* Section Labels */
+.section-label {
+  font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  margin: 1.2rem 0 0.6rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 0.4rem;
+}
+.section-label.s-perfect { color: var(--green); }
+.section-label.s-partial { color: var(--yellow); }
+.section-label.s-reject  { color: var(--red); }
+
+/* Result Card */
+.result-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 1rem 1.2rem; margin-bottom: 0.7rem;
+  opacity: 0; transform: translateY(10px); transition: all 0.35s;
+}
+.result-card.visible { opacity: 1; transform: translateY(0); }
+.result-card.c-perfect { border-left: 3px solid var(--green); }
+.result-card.c-partial { border-left: 3px solid var(--yellow); }
+.result-card.c-reject  { border-left: 3px solid var(--red); opacity: 0.55; }
+.result-card.c-reject .r-title { text-decoration: line-through; color: var(--text-dim); }
+
+.r-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem; margin-bottom: 0.3rem; }
+.r-title { font-weight: 600; font-size: 0.92rem; flex: 1; }
+.r-title a { color: inherit; text-decoration: none; }
+.r-title a:hover { color: var(--accent); text-decoration: underline; }
+.r-badges { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+.badge {
+  padding: 0.15rem 0.55rem; border-radius: 4px; font-size: 0.7rem;
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+}
+.b-perfect { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.b-partial { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow-border); }
+.b-reject  { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+.b-score { background: var(--bg-input); color: var(--text-muted); border: 1px solid var(--border); }
+
+.r-snippet { font-size: 0.83rem; color: var(--text-muted); line-height: 1.55; margin-bottom: 0.4rem; }
+.r-meta { display: flex; align-items: center; gap: 0.6rem; font-size: 0.72rem; color: var(--text-dim); flex-wrap: wrap; }
+.r-meta a { color: var(--accent); text-decoration: none; }
+.r-meta a:hover { text-decoration: underline; }
+.adapter-tag {
+  padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.7rem;
+  background: var(--bg-input); border: 1px solid var(--border);
+}
+
+/* Assessment expandable */
+.assess-toggle {
+  font-size: 0.72rem; color: var(--accent); cursor: pointer; margin-top: 0.5rem;
+  display: inline-block; user-select: none;
+}
+.assess-toggle:hover { color: var(--accent-hover); }
+.assess-detail { display: none; margin-top: 0.4rem; padding: 0.5rem; background: var(--bg-input); border-radius: var(--radius-sm); }
+.assess-detail.open { display: block; }
+.assess-row {
+  display: flex; align-items: flex-start; gap: 0.4rem; padding: 0.3rem 0;
+  border-bottom: 1px solid rgba(42,45,58,0.5); font-size: 0.76rem;
+}
+.assess-row:last-child { border-bottom: none; }
+.a-icon { font-size: 0.85rem; flex-shrink: 0; }
+.a-crit { color: var(--text); font-weight: 600; }
+.a-expl { color: var(--text-muted); font-style: italic; display: block; margin-top: 0.1rem; }
+
+/* Rejected toggle */
+.rejected-toggle {
+  cursor: pointer; user-select: none; display: flex; align-items: center; gap: 0.4rem;
+}
+.rejected-body { display: none; }
+.rejected-body.open { display: block; }
+
+/* Score bar */
+.score-bar {
+  width: 48px; height: 5px; border-radius: 3px; background: var(--border); overflow: hidden; flex-shrink: 0;
+}
+.score-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+
+/* Footer */
+.footer { text-align: center; padding: 2rem; font-size: 0.78rem; color: var(--text-dim); }
+.footer a { color: var(--accent); text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+
+/* ── Error / Empty ──────────────────────── */
+.error-msg {
+  text-align: center; padding: 2rem; color: var(--red);
+  background: var(--red-bg); border: 1px solid var(--red-border);
+  border-radius: var(--radius-sm); margin-bottom: 1rem;
+}
+
+/* ── Responsive ─────────────────────────── */
+@media (max-width: 640px) {
+  .logo h1 { font-size: 1.8rem; }
+  .search-wrap { flex-direction: column; }
+  .search-btn { padding: 0.8rem; }
+  .results-area { padding: 1rem; }
+  .summary-bar { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .stat-time { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Landing / Search Bar ──────────────────────────────────────────── -->
+<div class="landing" id="landing">
+  <div class="logo">
+    <h1><span class="accent">Open</span>Sift</h1>
+    <p>AI-enhanced search — intelligent query planning &amp; result verification</p>
+  </div>
+  <div class="search-wrap">
+    <input class="search-input" id="queryInput" type="text"
+           placeholder="Ask a research question..." autocomplete="off" autofocus />
+    <button class="search-btn" id="searchBtn" onclick="startSearch()">Search</button>
+  </div>
+  <div class="search-hints" id="hints"></div>
+</div>
+
+<!-- ── Results ────────────────────────────────────────────────────────── -->
+<div class="results-area" id="resultsArea">
+  <!-- Pipeline -->
+  <div class="pipeline" id="pipeline">
+    <div class="pipe-step" id="p-plan"><span>&#129504;</span> Understanding<span class="sub" id="p-plan-sub"></span></div>
+    <span class="pipe-arrow">&#8594;</span>
+    <div class="pipe-step" id="p-search"><span>&#128269;</span> Searching<span class="sub" id="p-search-sub"></span></div>
+    <span class="pipe-arrow">&#8594;</span>
+    <div class="pipe-step" id="p-verify"><span>&#9989;</span> Verifying<span class="sub" id="p-verify-sub"></span></div>
+    <span class="pipe-arrow">&#8594;</span>
+    <div class="pipe-step" id="p-classify"><span>&#128202;</span> Classifying<span class="sub" id="p-classify-sub"></span></div>
+  </div>
+
+  <!-- Criteria (collapsible) -->
+  <div class="criteria-section" id="criteriaSection" style="display:none">
+    <div class="criteria-header" onclick="document.getElementById('criteriaBody').classList.toggle('open');this.querySelector('.arrow').textContent=document.getElementById('criteriaBody').classList.contains('open')?'&#9660;':'&#9654;'">
+      <span>AI-Generated Screening Criteria</span>
+      <span class="arrow">&#9654;</span>
+    </div>
+    <div class="criteria-body" id="criteriaBody"></div>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary-bar" id="summaryBar" style="display:none"></div>
+
+  <!-- Results Container -->
+  <div id="resultsContainer"></div>
+
+  <!-- Footer -->
+  <div class="footer">
+    Powered by <a href="https://github.com/AtomInnoLab/OpenSift" target="_blank">OpenSift</a> &amp;
+    <a href="https://wispaper.ai?utm_source=opensift" target="_blank">WisModel</a>
+    &nbsp;·&nbsp; <a href="/debug">Debug Panel</a>
+    &nbsp;·&nbsp; <a href="/docs">API Docs</a>
+  </div>
+</div>
+
+<script>
+const BASE = window.location.origin;
+
+const HINTS = [
+  "Deep learning for solar irradiance nowcasting",
+  "Federated learning for privacy-preserving medical imaging",
+  "Graph neural networks for drug discovery",
+  "Reinforcement learning for robotic manipulation",
+  "Transformer architectures for time series forecasting",
+];
+
+function initHints() {
+  const el = document.getElementById('hints');
+  HINTS.forEach(h => {
+    const pill = document.createElement('span');
+    pill.className = 'hint-pill';
+    pill.textContent = h;
+    pill.onclick = () => { document.getElementById('queryInput').value = h; startSearch(); };
+    el.appendChild(pill);
+  });
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function setStep(id, state, sub) {
+  const el = document.getElementById(id);
+  el.classList.remove('active', 'done', 'error');
+  if (state) el.classList.add(state);
+  const subEl = document.getElementById(id + '-sub');
+  if (subEl) subEl.textContent = sub || '';
+}
+
+function resetPipeline() {
+  ['p-plan','p-search','p-verify','p-classify'].forEach(id => setStep(id, '', ''));
+}
+
+function scoreColor(s) {
+  if (s >= 0.8) return 'var(--green)';
+  if (s >= 0.4) return 'var(--yellow)';
+  return 'var(--red)';
+}
+
+function assessIcon(a) {
+  if (a === 'support') return '<span style="color:var(--green)">&#10004;</span>';
+  if (a === 'somewhat_support') return '<span style="color:var(--yellow)">&#9679;</span>';
+  if (a === 'reject') return '<span style="color:var(--red)">&#10008;</span>';
+  return '<span style="color:var(--text-dim)">?</span>';
+}
+
+function adapterIcon(n) {
+  const m = { atomwalker:'\uD83C\uDF93', elasticsearch:'\uD83D\uDD0D', opensearch:'\uD83D\uDD0D', solr:'\u2600\uFE0F', meilisearch:'\u26A1', wikipedia:'\uD83D\uDCD6' };
+  return m[n] || '\uD83D\uDD0C';
+}
+
+function buildCard(scored) {
+  const r = scored.result || {};
+  const v = scored.validation || {};
+  const cls = scored.classification || 'reject';
+  const score = scored.weighted_score || 0;
+  const title = r.title || 'Untitled';
+  const content = (r.content || '').substring(0, 280);
+  const url = r.source_url;
+  const adapter = r.source_adapter || 'unknown';
+  const fields = r.fields || {};
+
+  const badgeMap = { perfect: 'b-perfect', partial: 'b-partial', reject: 'b-reject' };
+  const labelMap = { perfect: 'Perfect', partial: 'Partial', reject: 'Rejected' };
+
+  let meta = `<span class="adapter-tag">${adapterIcon(adapter)} ${esc(adapter)}</span>`;
+  if (fields.authors) meta += `<span>${esc(fields.authors)}</span>`;
+  if (fields.publication_date) meta += `<span>${esc(fields.publication_date)}</span>`;
+  if (fields.conference_journal) meta += `<span>${esc(fields.conference_journal)}</span>`;
+  if (url && url !== 'N/A') meta += `<a href="${esc(url)}" target="_blank" rel="noopener">Open source &#8599;</a>`;
+
+  const uid = 'a-' + Math.random().toString(36).slice(2, 8);
+  let assessHtml = '';
+  if (v.criteria_assessment && v.criteria_assessment.length) {
+    assessHtml += `<div class="assess-toggle" onclick="document.getElementById('${uid}').classList.toggle('open');this.textContent=this.textContent.startsWith('\\u25B6')?'\\u25BC Hide AI reasoning':'\\u25B6 Show AI reasoning'">&#9654; Show AI reasoning</div>`;
+    assessHtml += `<div class="assess-detail" id="${uid}">`;
+    v.criteria_assessment.forEach(ca => {
+      assessHtml += `<div class="assess-row"><span class="a-icon">${assessIcon(ca.assessment)}</span><div><span class="a-crit">${esc(ca.criterion_id)}</span>: ${esc(ca.assessment)}<span class="a-expl">${esc(ca.explanation || '')}</span></div></div>`;
+    });
+    assessHtml += '</div>';
+  }
+
+  let summaryHtml = '';
+  if (v.summary) summaryHtml = `<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.4rem;font-style:italic">${esc(v.summary)}</div>`;
+
+  return `<div class="result-card c-${cls}">
+    <div class="r-header">
+      <div class="r-title">${url && url !== 'N/A' ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(title)}</a>` : esc(title)}</div>
+      <div class="r-badges">
+        <div class="score-bar"><div class="score-bar-fill" style="width:${score*100}%;background:${scoreColor(score)}"></div></div>
+        <span class="badge ${badgeMap[cls] || 'b-reject'}">${labelMap[cls] || cls}</span>
+      </div>
+    </div>
+    <div class="r-snippet">${esc(content)}${(r.content||'').length > 280 ? '...' : ''}</div>
+    ${summaryHtml}
+    <div class="r-meta">${meta}</div>
+    ${assessHtml}
+  </div>`;
+}
+
+let searching = false;
+
+async function startSearch() {
+  const query = document.getElementById('queryInput').value.trim();
+  if (!query || searching) return;
+
+  searching = true;
+  const btn = document.getElementById('searchBtn');
+  btn.disabled = true;
+  btn.textContent = 'Searching...';
+
+  const landing = document.getElementById('landing');
+  landing.classList.add('compact');
+
+  const area = document.getElementById('resultsArea');
+  area.classList.add('visible');
+
+  const container = document.getElementById('resultsContainer');
+  container.innerHTML = '';
+  document.getElementById('summaryBar').style.display = 'none';
+  document.getElementById('criteriaSection').style.display = 'none';
+  document.getElementById('criteriaBody').classList.remove('open');
+  resetPipeline();
+
+  const startT = performance.now();
+  setStep('p-plan', 'active');
+
+  let perfectCount = 0, partialCount = 0, rejectCount = 0, totalResults = 0, resultIdx = 0;
+  const perfects = [], partials = [], rejects = [];
+
+  try {
+    const resp = await fetch(BASE + '/v1/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query,
+        options: { max_results: 15, verify: true, decompose: true, classify: true, stream: true },
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+      throw new Error(err.detail || resp.statusText);
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop();
+
+      for (const part of parts) {
+        if (!part.trim()) continue;
+
+        let eventType = '', dataStr = '';
+        for (const line of part.split('\n')) {
+          if (line.startsWith('event:')) eventType = line.slice(6).trim();
+          else if (line.startsWith('data:')) dataStr = line.slice(5).trim();
+        }
+        if (!eventType || !dataStr) continue;
+
+        let data;
+        try { data = JSON.parse(dataStr); } catch { continue; }
+
+        if (eventType === 'criteria') {
+          setStep('p-plan', 'done');
+          setStep('p-search', 'active');
+
+          const cr = data.criteria_result;
+          if (cr) {
+            const bodyEl = document.getElementById('criteriaBody');
+            let html = '';
+            if (cr.criteria && cr.criteria.length) {
+              cr.criteria.forEach(c => {
+                html += `<div class="crit-item"><span class="cname">${esc(c.type || c.description)}</span> <span class="cw">(w=${c.weight})</span><br/><span class="cdesc">${esc(c.description)}</span></div>`;
+              });
+            }
+            if (cr.search_queries && cr.search_queries.length) {
+              html += '<div class="search-queries">';
+              cr.search_queries.forEach(q => { html += `<code>${esc(q)}</code>`; });
+              html += '</div>';
+            }
+            bodyEl.innerHTML = html;
+            document.getElementById('criteriaSection').style.display = 'block';
+          }
+
+        } else if (eventType === 'search_complete') {
+          totalResults = data.total_results || 0;
+          setStep('p-search', 'done', totalResults + ' found');
+          setStep('p-verify', 'active', '0/' + totalResults);
+
+        } else if (eventType === 'result') {
+          resultIdx++;
+          totalResults = data.total || totalResults;
+          setStep('p-verify', 'active', resultIdx + '/' + totalResults);
+
+          const scored = data.scored_result;
+          if (scored) {
+            const cls = scored.classification || 'reject';
+            if (cls === 'perfect') { perfectCount++; perfects.push(scored); }
+            else if (cls === 'partial') { partialCount++; partials.push(scored); }
+            else { rejectCount++; rejects.push(scored); }
+          }
+
+        } else if (eventType === 'done') {
+          perfectCount = data.perfect_count || perfectCount;
+          partialCount = data.partial_count || partialCount;
+          rejectCount  = data.rejected_count || rejectCount;
+          const elapsed = data.processing_time_ms ? data.processing_time_ms + 'ms' : Math.round(performance.now() - startT) + 'ms';
+
+          setStep('p-verify', 'done');
+          setStep('p-classify', 'done', elapsed);
+
+          renderResults(perfects, partials, rejects, perfectCount, partialCount, rejectCount, totalResults, elapsed);
+
+        } else if (eventType === 'error') {
+          throw new Error(data.error || 'Search failed');
+        }
+      }
+    }
+
+  } catch (e) {
+    setStep('p-classify', 'error', '');
+    container.innerHTML = `<div class="error-msg">${esc(e.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Search';
+    searching = false;
+  }
+}
+
+function renderResults(perfects, partials, rejects, pc, pac, rc, total, elapsed) {
+  const summary = document.getElementById('summaryBar');
+  summary.innerHTML = `
+    <div class="stat perfect"><span class="num">${pc}</span><span class="lbl">Perfect</span></div>
+    <div class="stat partial"><span class="num">${pac}</span><span class="lbl">Partial</span></div>
+    <div class="stat reject"><span class="num">${rc}</span><span class="lbl">Rejected</span></div>
+    <div class="stat scanned"><span class="num">${total}</span><span class="lbl">Scanned</span></div>
+    <div class="stat-time">${elapsed}</div>
+  `;
+  summary.style.display = 'flex';
+
+  const container = document.getElementById('resultsContainer');
+  let html = '';
+  let delay = 0;
+
+  if (perfects.length) {
+    html += `<div class="section-label s-perfect">&#10004; Perfect Match (${perfects.length})</div>`;
+    perfects.forEach(s => { html += buildCard(s); });
+  }
+  if (partials.length) {
+    html += `<div class="section-label s-partial">&#9888; Partial Match (${partials.length})</div>`;
+    partials.forEach(s => { html += buildCard(s); });
+  }
+  if (rejects.length) {
+    html += `<div class="section-label s-reject rejected-toggle" onclick="document.getElementById('rejectedBody').classList.toggle('open');this.querySelector('.rtxt').textContent=document.getElementById('rejectedBody').classList.contains('open')?'&#9660;':'&#9654;'">&#10060; Rejected (${rejects.length}) <span class="rtxt" style="font-size:0.72rem;margin-left:0.3rem">&#9654;</span></div>`;
+    html += '<div class="rejected-body" id="rejectedBody">';
+    rejects.forEach(s => { html += buildCard(s); });
+    html += '</div>';
+  }
+
+  container.innerHTML = html;
+
+  requestAnimationFrame(() => {
+    container.querySelectorAll('.result-card').forEach((card, i) => {
+      setTimeout(() => card.classList.add('visible'), 60 * i);
+    });
+  });
+}
+
+document.getElementById('queryInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) startSearch();
+});
+
+initHints();
+</script>
+</body>
+</html>

@@ -93,10 +93,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Register API routers
     app.include_router(v1_router, prefix="/v1")
 
-    # ── Debug Panel (Web UI) ──────────────────────────────────────────────
+    # ── Web UI ─────────────────────────────────────────────────────────────
+    @app.get("/", include_in_schema=False)
+    async def search_ui() -> FileResponse:
+        """Serve the user-facing search interface."""
+        return FileResponse(_STATIC_DIR / "search.html", media_type="text/html")
+
     @app.get("/debug", include_in_schema=False)
     async def debug_panel() -> FileResponse:
-        """Serve the Web UI debug panel."""
+        """Serve the developer debug panel."""
         return FileResponse(_STATIC_DIR / "debug.html", media_type="text/html")
 
     if _STATIC_DIR.exists():

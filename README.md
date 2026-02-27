@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/opensift-banner.png" alt="OpenSift Banner" width="800" />
+  <img src="https://raw.githubusercontent.com/AtomInnoLab/OpenSift/main/docs/opensift-banner.png" alt="OpenSift Banner" width="800" />
 </p>
 
 <p align="center">
@@ -9,7 +9,7 @@
   <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff"></a>
   <a href="https://github.com/AtomInnoLab/OpenSift"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
   <a href="https://arxiv.org/abs/2512.06879"><img src="https://img.shields.io/badge/arXiv-2512.06879-b31b1b.svg" alt="arXiv"></a>
-  <a href="https://wispaper.ai"><img src="https://img.shields.io/badge/Origin-WisPaper-8A2BE2.svg" alt="WisPaper"></a>
+  <a href="https://wispaper.ai?utm_source=opensift"><img src="https://img.shields.io/badge/Origin-WisPaper-8A2BE2.svg" alt="WisPaper"></a>
 </p>
 
 <p align="center">
@@ -18,12 +18,14 @@
 
 **Open-source AI augmentation layer that adds intelligent query planning and result verification to any search backend.**
 
-OpenSift is born from [WisPaper](https://wispaper.ai), an AI-powered academic search platform developed by Fudan NLP Lab and WisPaper.ai. The core search-verification paradigm — AI query planning + LLM-based result verification — is described in the research paper [*WisPaper: Your AI Scholar Search Engine*](https://arxiv.org/abs/2512.06879). OpenSift extracts this proven paradigm into a **universal, open-source middleware** that can be plugged into any search backend, bringing the same AI capabilities to every search engine.
+OpenSift is born from [WisPaper](https://wispaper.ai?utm_source=opensift), an AI-powered academic search platform developed by Fudan NLP Lab and WisPaper.ai. The core search-verification paradigm — AI query planning + LLM-based result verification — is described in the research paper [*WisPaper: Your AI Scholar Search Engine*](https://arxiv.org/abs/2512.06879). OpenSift extracts this proven paradigm into a **universal, open-source middleware** that can be plugged into any search backend, bringing the same AI capabilities to every search engine.
 
 OpenSift is not a search engine or a Q&A system. It is a lightweight AI middleware that plugs into your existing search backend (Elasticsearch, OpenSearch, Solr, MeiliSearch, Wikipedia, AtomWalker, or any custom API) and injects two core AI capabilities:
 
 1. **Query Planning** — Decomposes natural language questions into precise search queries and quantified screening criteria
 2. **Result Verification** — Uses LLM to verify each search result against the criteria, with evidence and reasoning
+
+> **Try it live** — Experience the search-verification paradigm in action on [WisPaper Scholar Search](https://www.wispaper.ai/en/scholar-search?utm_source=opensift), the production application powered by the same AI pipeline. No setup required.
 
 ---
 
@@ -36,7 +38,7 @@ Traditional search systems return **keyword-matched** results, leaving users to 
 - **Rejected** — Filtered out automatically
 
 <p align="center">
-  <img src="docs/architecture.jpg" alt="OpenSift Architecture" width="700" />
+  <img src="https://raw.githubusercontent.com/AtomInnoLab/OpenSift/main/docs/architecture.jpg" alt="OpenSift Architecture" width="700" />
 </p>
 
 ## Quick Start
@@ -608,7 +610,7 @@ WisModel achieves 93.70% overall accuracy, surpassing the next best model (Gemin
 | Gemini3-Pro | 67.40 | 66.80 | 15.90 | 91.10 | 73.23 |
 | **WisModel** | **90.64** | **94.54** | **91.82** | **94.38** | **93.70** |
 
-> WisModel is available via the [WisPaper API Hub](https://wispaper.ai). Contact the team to obtain your API key.
+> WisModel is available via the [WisPaper API Hub](https://wispaper.ai?utm_source=opensift). Contact the team to obtain your API key.
 
 ## Web UI Debug Panel
 
@@ -715,6 +717,58 @@ docker-compose -f deployments/docker/docker-compose.minimal.yml up
 docker-compose -f deployments/docker/docker-compose.dev.yml up
 ```
 
+## Cloud Deployment
+
+OpenSift includes ready-to-use configs for one-click deployment to popular cloud platforms. All platforms use the same Dockerfile and respect the `$PORT` environment variable.
+
+### Railway
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.app/template/opensift)
+
+```bash
+# Install Railway CLI: https://docs.railway.app/guides/cli
+railway login
+railway init
+railway up
+```
+
+Set environment variables in the Railway dashboard:
+
+```
+OPENSIFT_AI__API_KEY=your-wismodel-key
+OPENSIFT_SEARCH__DEFAULT_ADAPTER=wikipedia
+```
+
+### Render
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/AtomInnoLab/OpenSift)
+
+Render auto-detects `render.yaml`. Or deploy manually:
+
+1. Create a new **Web Service** on [Render](https://render.com)
+2. Connect your GitHub repo
+3. Render will detect the `render.yaml` and configure automatically
+4. Add `OPENSIFT_AI__API_KEY` in the **Environment** tab
+
+### Fly.io
+
+```bash
+# Install flyctl: https://fly.io/docs/flyctl/install/
+fly auth login
+fly launch          # uses fly.toml from the repo
+fly secrets set OPENSIFT_AI__API_KEY=your-wismodel-key
+fly deploy
+```
+
+### Environment Variables (All Platforms)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENSIFT_AI__API_KEY` | Yes | WisModel API key |
+| `OPENSIFT_AI__BASE_URL` | No | WisModel endpoint (has default) |
+| `OPENSIFT_SEARCH__DEFAULT_ADAPTER` | No | Search backend (`wikipedia`, `atomwalker`, etc.) |
+| `OPENSIFT_OBSERVABILITY__LOG_LEVEL` | No | Log level (`info`, `debug`, etc.) |
+
 ## Roadmap
 
 - [x] LLM query planning (search queries + screening criteria generation)
@@ -729,6 +783,10 @@ docker-compose -f deployments/docker/docker-compose.dev.yml up
 - [x] Web UI debug panel
 - [x] More search backend adapters (OpenSearch, Solr, MeiliSearch, Wikipedia)
 - [x] Docker-based integration tests for all adapters
+- [x] Interactive demo on GitHub Pages
+- [x] Web UI for non-technical users
+- [ ] Multi-language support (i18n)
+- [ ] Plugin system for custom verification logic
 
 ## Citation
 
@@ -749,4 +807,4 @@ If you use OpenSift or the search-verification paradigm in your research, please
 
 ---
 
-**OpenSift** — Born from [WisPaper](https://wispaper.ai), built for every search engine. Inject AI intelligence into your existing search systems.
+**OpenSift** — Born from [WisPaper](https://wispaper.ai?utm_source=opensift), built for every search engine. Inject AI intelligence into your existing search systems.

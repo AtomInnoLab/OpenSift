@@ -137,6 +137,35 @@ docs-serve: ## Serve documentation locally
 docs-build: ## Build documentation
 	poetry run mkdocs build
 
+# ─── SDK ─────────────────────────────────────────────
+
+openapi-export: ## Export OpenAPI spec to sdks/openapi.json
+	poetry run python -c "\
+		from opensift.api.app import create_app; \
+		import json; \
+		app = create_app(); \
+		spec = app.openapi(); \
+		print(json.dumps(spec, indent=2))" > sdks/openapi.json
+	@echo "Exported OpenAPI spec to sdks/openapi.json"
+
+# ─── Build & Publish ─────────────────────────────────
+
+build: clean ## Build sdist and wheel
+	poetry build
+	@echo "Built packages:"
+	@ls -lh dist/
+
+publish-check: build ## Build and verify package metadata
+	poetry run twine check dist/*
+
+publish-test: publish-check ## Publish to TestPyPI
+	poetry run twine upload --repository testpypi dist/*
+
+publish: publish-check ## Publish to PyPI (use with caution)
+	@echo "Publishing opensift $$(poetry version -s) to PyPI..."
+	@read -p "Are you sure? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
+	poetry run twine upload dist/*
+
 # ─── Cleanup ─────────────────────────────────────────────
 
 clean: ## Remove build artifacts and caches

@@ -4,7 +4,7 @@ OpenSift is powered exclusively by **WisModel**, a model specifically trained fo
 
 ## Overview
 
-WisModel is developed by the [Fudan NLP Lab](https://nlp.fudan.edu.cn/) and [WisPaper.ai](https://wispaper.ai), as described in the paper [*WisPaper: Your AI Scholar Search Engine*](https://arxiv.org/abs/2512.06879).
+WisModel is developed by the [Fudan NLP Lab](https://nlp.fudan.edu.cn/) and [WisPaper.ai](https://wispaper.ai?utm_source=opensift), as described in the paper [*WisPaper: Your AI Scholar Search Engine*](https://arxiv.org/abs/2512.06879).
 
 **Training approach:**
 
@@ -44,7 +44,7 @@ WisModel achieves **93.70%** overall accuracy, surpassing the next best model (G
 
 ## Getting Access
 
-WisModel is available via the [WisPaper API Hub](https://wispaper.ai). Contact the team to obtain your API key.
+WisModel is available via the [WisPaper API Hub](https://wispaper.ai?utm_source=opensift). Contact the team to obtain your API key.
 
 ## Citation
 

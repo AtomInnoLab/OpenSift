@@ -1,6 +1,6 @@
 [project]
 name = "opensift"
-version = "0.1.0"
+version = "0.1.1"
 description = "Open-source AI augmentation layer for search engines — adds intelligent query planning and result verification to any search backend"
 authors = [
     { name = "OpenSift Team", email = "team@opensift.io" },
@@ -34,7 +34,7 @@ dependencies = [
     "structlog>=24.4.0",
     # LLM providers (OpenAI-compatible)
     "openai>=1.60.0",
-    "wikipedia-api (>=0.9.0,<0.10.0)",
+    "wikipedia-api>=0.9.0,<0.10.0",
 ]
 
 [project.optional-dependencies]
@@ -67,6 +67,7 @@ ruff = ">=0.9.0"
 mypy = ">=1.14.0"
 pre-commit = ">=4.0.0"
 httpx = ">=0.28.0"  # for TestClient
+twine = ">=6.0.0"
 
 [tool.poetry.group.docs.dependencies]
 mkdocs = ">=1.6.0"

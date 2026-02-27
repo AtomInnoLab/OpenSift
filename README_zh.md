@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/opensift-banner.png" alt="OpenSift Banner" width="800" />
+  <img src="https://raw.githubusercontent.com/AtomInnoLab/OpenSift/main/docs/opensift-banner.png" alt="OpenSift Banner" width="800" />
 </p>
 
 <p align="center">
@@ -9,7 +9,7 @@
   <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff"></a>
   <a href="https://github.com/AtomInnoLab/OpenSift"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
   <a href="https://arxiv.org/abs/2512.06879"><img src="https://img.shields.io/badge/arXiv-2512.06879-b31b1b.svg" alt="arXiv"></a>
-  <a href="https://wispaper.ai"><img src="https://img.shields.io/badge/Origin-WisPaper-8A2BE2.svg" alt="WisPaper"></a>
+  <a href="https://wispaper.ai?utm_source=opensift"><img src="https://img.shields.io/badge/Origin-WisPaper-8A2BE2.svg" alt="WisPaper"></a>
 </p>
 
 <p align="center">
@@ -18,12 +18,14 @@
 
 **让现有搜索系统快速接入 AI 能力的开源增强层。**
 
-OpenSift 脱胎于 [WisPaper](https://wispaper.ai) —— 由复旦 NLP 实验室和 WisPaper.ai 联合打造的 AI 学术搜索平台。其核心的「搜索-验证」范式（AI 查询规划 + LLM 结果验证）已在论文 [*WisPaper: Your AI Scholar Search Engine*](https://arxiv.org/abs/2512.06879) 中详细阐述。OpenSift 将这一经过验证的范式提取为**通用的开源中间件**，可以接入任何搜索后端，让每一个搜索引擎都能获得同样的 AI 能力。
+OpenSift 脱胎于 [WisPaper](https://wispaper.ai?utm_source=opensift) —— 由复旦 NLP 实验室和 WisPaper.ai 联合打造的 AI 学术搜索平台。其核心的「搜索-验证」范式（AI 查询规划 + LLM 结果验证）已在论文 [*WisPaper: Your AI Scholar Search Engine*](https://arxiv.org/abs/2512.06879) 中详细阐述。OpenSift 将这一经过验证的范式提取为**通用的开源中间件**，可以接入任何搜索后端，让每一个搜索引擎都能获得同样的 AI 能力。
 
 OpenSift 不是一个搜索引擎，也不是问答系统。它是一个轻量级的 AI 中间层，接入你现有的搜索后端（Elasticsearch、OpenSearch、Solr、MeiliSearch、Wikipedia、AtomWalker 学术搜索、或任何自定义 API），为其注入两项核心 AI 能力：
 
 1. **智能查询规划（Query Planning）** — 将用户的自然语言问题分解为精准的搜索问句和量化的筛选条件
 2. **结果智能验证（Result Verification）** — 用 LLM 逐条验证搜索结果是否真正符合筛选条件，给出判定依据
+
+> **在线体验** — 无需安装，直接在 [WisPaper 学术搜索](https://www.wispaper.ai/en/scholar-search?utm_source=opensift) 上体验基于同一 AI 管线的搜索-验证能力。
 
 ---
 
@@ -36,7 +38,7 @@ OpenSift 不是一个搜索引擎，也不是问答系统。它是一个轻量�
 - **不相关（Rejected）** — 自动过滤，不展示
 
 <p align="center">
-  <img src="docs/architecture.jpg" alt="OpenSift 架构图" width="700" />
+  <img src="https://raw.githubusercontent.com/AtomInnoLab/OpenSift/main/docs/architecture.jpg" alt="OpenSift 架构图" width="700" />
 </p>
 
 ## 快速开始
@@ -608,7 +610,7 @@ WisModel 以 93.70% 的总体准确率遥遥领先，超出第二名（Gemini3-P
 | Gemini3-Pro | 67.40 | 66.80 | 15.90 | 91.10 | 73.23 |
 | **WisModel** | **90.64** | **94.54** | **91.82** | **94.38** | **93.70** |
 
-> WisModel 通过 [WisPaper API Hub](https://wispaper.ai) 提供服务。请联系团队获取 API Key。
+> WisModel 通过 [WisPaper API Hub](https://wispaper.ai?utm_source=opensift) 提供服务。请联系团队获取 API Key。
 
 ## Web UI 调试面板
 
@@ -715,6 +717,58 @@ docker-compose -f deployments/docker/docker-compose.minimal.yml up
 docker-compose -f deployments/docker/docker-compose.dev.yml up
 ```
 
+## 云平台部署
+
+OpenSift 内置了主流云平台的一键部署配置，所有平台共用同一个 Dockerfile，并自动适配 `$PORT` 环境变量。
+
+### Railway
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.app/template/opensift)
+
+```bash
+# 安装 Railway CLI: https://docs.railway.app/guides/cli
+railway login
+railway init
+railway up
+```
+
+在 Railway 控制面板中设置环境变量：
+
+```
+OPENSIFT_AI__API_KEY=your-wismodel-key
+OPENSIFT_SEARCH__DEFAULT_ADAPTER=wikipedia
+```
+
+### Render
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/AtomInnoLab/OpenSift)
+
+Render 会自动识别 `render.yaml`。也可以手动部署：
+
+1. 在 [Render](https://render.com) 创建新的 **Web Service**
+2. 连接 GitHub 仓库
+3. Render 会自动检测 `render.yaml` 并完成配置
+4. 在 **Environment** 标签页中添加 `OPENSIFT_AI__API_KEY`
+
+### Fly.io
+
+```bash
+# 安装 flyctl: https://fly.io/docs/flyctl/install/
+fly auth login
+fly launch          # 使用仓库中的 fly.toml
+fly secrets set OPENSIFT_AI__API_KEY=your-wismodel-key
+fly deploy
+```
+
+### 环境变量（所有平台通用）
+
+| 变量 | 必需 | 说明 |
+|------|------|------|
+| `OPENSIFT_AI__API_KEY` | 是 | WisModel API 密钥 |
+| `OPENSIFT_AI__BASE_URL` | 否 | WisModel 接口地址（有默认值） |
+| `OPENSIFT_SEARCH__DEFAULT_ADAPTER` | 否 | 搜索后端（`wikipedia`、`atomwalker` 等） |
+| `OPENSIFT_OBSERVABILITY__LOG_LEVEL` | 否 | 日志级别（`info`、`debug` 等） |
+
 ## 路线图
 
 - [x] LLM 查询规划 (搜索问句 + 筛选条件生成)
@@ -729,6 +783,10 @@ docker-compose -f deployments/docker/docker-compose.dev.yml up
 - [x] Web UI 调试面板
 - [x] 更多搜索后端适配器 (OpenSearch, Solr, MeiliSearch, Wikipedia)
 - [x] 全适配器 Docker 集成测试
+- [x] GitHub Pages 交互式 Demo
+- [x] 面向非技术用户的 Web UI
+- [ ] 多语言支持 (i18n)
+- [ ] 自定义验证逻辑插件系统
 
 ## 引用
 
@@ -749,4 +807,4 @@ docker-compose -f deployments/docker/docker-compose.dev.yml up
 
 ---
 
-**OpenSift** — 脱胎于 [WisPaper](https://wispaper.ai)，为每一个搜索引擎而生。为现有搜索系统注入 AI 智能。
+**OpenSift** — 脱胎于 [WisPaper](https://wispaper.ai?utm_source=opensift)，为每一个搜索引擎而生。为现有搜索系统注入 AI 智能。

@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: opensift
+    runtime: docker
+    dockerfilePath: deployments/docker/Dockerfile
+    plan: free
+    healthCheckPath: /v1/health
+    envVars:
+      - key: OPENSIFT_AI__API_KEY
+        sync: false
+      - key: OPENSIFT_AI__BASE_URL
+        value: "http://wis-apihub-v2.dev.atominnolab.com/api/v1/resource/WisModel/v1"
+      - key: OPENSIFT_SEARCH__DEFAULT_ADAPTER
+        value: "wikipedia"
+      - key: OPENSIFT_OBSERVABILITY__LOG_LEVEL
+        value: "info"
+      - key: OPENSIFT_OBSERVABILITY__LOG_FORMAT
+        value: "json"

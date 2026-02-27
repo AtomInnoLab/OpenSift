@@ -43,13 +43,15 @@ RUN pip install --no-cache-dir .
 # Switch to non-root user
 USER opensift
 
-# Expose port
+# Expose default port (overridden by $PORT at runtime)
 EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD curl -f http://localhost:8080/v1/health || exit 1
+    CMD curl -f http://localhost:${PORT:-8080}/v1/health || exit 1
 
-# Default command
-ENTRYPOINT ["opensift"]
-CMD ["--host", "0.0.0.0", "--port", "8080"]
+# Cloud platforms (Railway, Render, Fly.io) inject $PORT at runtime
+ENV PORT=8080
+
+# Default command — respects $PORT for cloud compatibility
+ENTRYPOINT ["sh", "-c", "opensift --host 0.0.0.0 --port ${PORT}"]

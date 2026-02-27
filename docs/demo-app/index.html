@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenSift — Interactive Demo</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --bg-card: #1a1d27;
+  --bg-card-hover: #1e2230;
+  --bg-input: #141620;
+  --border: #2a2d3a;
+  --border-focus: #6366f1;
+  --text: #e2e8f0;
+  --text-muted: #8b92a5;
+  --text-dim: #5a6175;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --green: #22c55e;
+  --green-bg: rgba(34,197,94,0.12);
+  --green-border: rgba(34,197,94,0.3);
+  --yellow: #eab308;
+  --yellow-bg: rgba(234,179,8,0.12);
+  --yellow-border: rgba(234,179,8,0.3);
+  --red: #ef4444;
+  --red-bg: rgba(239,68,68,0.10);
+  --red-border: rgba(239,68,68,0.25);
+  --blue: #3b82f6;
+  --blue-bg: rgba(59,130,246,0.1);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.3);
+  --mono: 'SF Mono', 'Fira Code', monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; scroll-behavior: smooth; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+
+.app { max-width: 1400px; margin: 0 auto; padding: 1.5rem 1.5rem 4rem; }
+
+/* ── Header ─────────────────────────────── */
+header { text-align: center; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+header h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.4rem; }
+header h1 .accent { color: var(--accent); }
+header p { color: var(--text-muted); font-size: 0.95rem; max-width: 600px; margin: 0 auto; }
+
+/* ── Query Bar ──────────────────────────── */
+.query-section { text-align: center; margin-bottom: 1.5rem; }
+.query-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; margin-bottom: 1rem; }
+.query-pill {
+  padding: 0.45rem 1rem; border-radius: 20px; border: 1px solid var(--border);
+  background: var(--bg-card); color: var(--text-muted); cursor: pointer;
+  font-size: 0.82rem; transition: all 0.2s;
+}
+.query-pill:hover { border-color: var(--accent); color: var(--text); }
+.query-pill.active { border-color: var(--accent); background: rgba(99,102,241,0.15); color: var(--accent-hover); }
+.search-btn {
+  padding: 0.6rem 2rem; border-radius: 8px; border: none;
+  background: var(--accent); color: #fff; font-size: 0.95rem; font-weight: 600;
+  cursor: pointer; transition: background 0.2s;
+}
+.search-btn:hover { background: var(--accent-hover); }
+.search-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Pipeline ───────────────────────────── */
+.pipeline { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.pipe-step {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.4rem 0.9rem; border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+  background: var(--bg-card); border: 1px solid var(--border); color: var(--text-dim); transition: all 0.4s;
+}
+.pipe-step.active { border-color: var(--accent); color: var(--accent); background: rgba(99,102,241,0.1); }
+.pipe-step.done { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+.pipe-arrow { color: var(--text-dim); font-size: 0.9rem; margin: 0 0.3rem; }
+.pipe-step .icon { font-size: 1rem; }
+
+/* ── Comparison Layout ──────────────────── */
+.comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+@media (max-width: 900px) { .comparison { grid-template-columns: 1fr; } }
+
+.panel { border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; }
+.panel-header {
+  padding: 0.8rem 1.2rem; display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.9rem;
+}
+.panel-left .panel-header { background: rgba(239,68,68,0.05); }
+.panel-right .panel-header { background: rgba(34,197,94,0.05); }
+.panel-body { padding: 1rem; min-height: 400px; }
+
+.panel-tag {
+  font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 10px; font-weight: 600;
+}
+.tag-old { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+.tag-new { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+
+/* ── Summary Bar ────────────────────────── */
+.summary-bar {
+  padding: 0.7rem 1rem; border-radius: var(--radius-sm); margin-bottom: 1rem;
+  font-size: 0.82rem; display: flex; align-items: center; gap: 0.5rem;
+}
+.summary-old { background: var(--red-bg); border: 1px solid var(--red-border); color: var(--text-muted); }
+.summary-new { background: var(--green-bg); border: 1px solid var(--green-border); color: var(--text-muted); }
+.summary-bar .num { font-weight: 700; color: var(--text); }
+.summary-bar .save { color: var(--green); font-weight: 700; }
+
+/* ── Criteria Box (right panel) ─────────── */
+.criteria-box {
+  background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 0.8rem 1rem; margin-bottom: 1rem;
+}
+.criteria-box h4 { font-size: 0.78rem; color: var(--accent); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.criteria-item { font-size: 0.8rem; color: var(--text-muted); padding: 0.2rem 0; }
+.criteria-item .cname { color: var(--text); font-weight: 600; }
+
+/* ── Result Card ────────────────────────── */
+.result-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 0.8rem 1rem; margin-bottom: 0.6rem; transition: all 0.3s; opacity: 0; transform: translateY(8px);
+}
+.result-card.visible { opacity: 1; transform: translateY(0); }
+.result-card .title { font-weight: 600; font-size: 0.88rem; margin-bottom: 0.3rem; }
+.result-card .snippet { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; }
+.result-card .meta { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.5rem; font-size: 0.72rem; color: var(--text-dim); }
+
+/* Classification badges */
+.badge {
+  display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px;
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.badge-perfect { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.badge-partial { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow-border); }
+.badge-reject  { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+.badge-score { background: var(--bg-input); color: var(--text-muted); border: 1px solid var(--border); font-weight: 600; }
+
+/* Right panel result cards with border colors */
+.result-card.perfect { border-left: 3px solid var(--green); }
+.result-card.partial { border-left: 3px solid var(--yellow); }
+.result-card.reject  { border-left: 3px solid var(--red); opacity: 0.6; }
+.result-card.reject .title { text-decoration: line-through; color: var(--text-dim); }
+
+/* ── Assessment Detail (expandable) ─────── */
+.assess-toggle {
+  font-size: 0.72rem; color: var(--accent); cursor: pointer; margin-top: 0.4rem;
+  display: inline-block; user-select: none;
+}
+.assess-toggle:hover { color: var(--accent-hover); }
+.assess-detail { display: none; margin-top: 0.5rem; }
+.assess-detail.open { display: block; }
+.assess-row {
+  display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(42,45,58,0.5); font-size: 0.76rem;
+}
+.assess-row:last-child { border-bottom: none; }
+.assess-icon { font-size: 0.85rem; flex-shrink: 0; margin-top: 0.05rem; }
+.assess-text .crit-name { color: var(--text); font-weight: 600; }
+.assess-text .explanation { color: var(--text-muted); display: block; margin-top: 0.1rem; font-style: italic; }
+
+/* ── Section divider in right panel ─────── */
+.section-label {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  margin: 1rem 0 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border);
+}
+.section-label.perfect-label { color: var(--green); }
+.section-label.partial-label { color: var(--yellow); }
+.section-label.reject-label  { color: var(--red); }
+
+/* ── Placeholder ────────────────────────── */
+.placeholder {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 300px; color: var(--text-dim); text-align: center;
+}
+.placeholder .icon { font-size: 3rem; margin-bottom: 0.8rem; opacity: 0.4; }
+.placeholder p { font-size: 0.88rem; }
+
+/* ── CTA Footer ─────────────────────────── */
+.cta {
+  text-align: center; margin-top: 3rem; padding: 2rem;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card);
+}
+.cta h3 { font-size: 1.2rem; margin-bottom: 0.5rem; }
+.cta p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem; }
+.cta-links { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
+.cta-link {
+  padding: 0.6rem 1.5rem; border-radius: 8px; text-decoration: none;
+  font-weight: 600; font-size: 0.9rem; transition: all 0.2s;
+}
+.cta-primary { background: var(--accent); color: #fff; }
+.cta-primary:hover { background: var(--accent-hover); }
+.cta-secondary { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+.cta-secondary:hover { border-color: var(--accent); color: var(--text); }
+
+/* ── Animations ─────────────────────────── */
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+.animating { animation: pulse 0.8s infinite; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1><span class="accent">OpenSift</span> Interactive Demo</h1>
+    <p>See the difference AI-powered search verification makes. Same query, same results — but one side has OpenSift.</p>
+  </header>
+
+  <!-- Query Selection -->
+  <div class="query-section">
+    <div class="query-pills" id="queryPills"></div>
+    <button class="search-btn" id="searchBtn" onclick="runDemo()">Run Comparison</button>
+  </div>
+
+  <!-- Pipeline Progress -->
+  <div class="pipeline" id="pipeline" style="display:none;">
+    <div class="pipe-step" id="step-plan"><span class="icon">🧠</span> Understanding Query</div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step" id="step-search"><span class="icon">🔍</span> Searching</div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step" id="step-verify"><span class="icon">✅</span> Verifying Each Result</div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step" id="step-classify"><span class="icon">📊</span> Classifying</div>
+  </div>
+
+  <!-- Before / After Comparison -->
+  <div class="comparison">
+    <!-- LEFT: Traditional Search -->
+    <div class="panel panel-left">
+      <div class="panel-header">
+        <span>Traditional Search</span>
+        <span class="panel-tag tag-old">Without OpenSift</span>
+      </div>
+      <div class="panel-body" id="leftPanel">
+        <div class="placeholder"><div class="icon">🔍</div><p>Select a query above and click "Run Comparison"</p></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: OpenSift Enhanced -->
+    <div class="panel panel-right">
+      <div class="panel-header">
+        <span>OpenSift Enhanced Search</span>
+        <span class="panel-tag tag-new">With OpenSift</span>
+      </div>
+      <div class="panel-body" id="rightPanel">
+        <div class="placeholder"><div class="icon">🤖</div><p>AI-powered verification will appear here</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta">
+    <h3>Ready to upgrade your search engine?</h3>
+    <p>Add AI-powered verification to any search backend in under 5 minutes.</p>
+    <div class="cta-links">
+      <a class="cta-link cta-primary" href="../guide/quickstart/">Quick Start →</a>
+      <a class="cta-link cta-secondary" href="https://github.com/AtomInnoLab/OpenSift">GitHub</a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   DEMO DATA — 3 pre-recorded queries with realistic results
+   ════════════════════════════════════════════════════════════════════ */
+const DEMOS = [
+  {
+    query: "Deep learning for solar nowcasting",
+    criteria: [
+      { id: "c1", name: "Solar irradiance nowcasting", desc: "The paper must specifically address short-term solar irradiance forecasting (nowcasting)", weight: 0.6 },
+      { id: "c2", name: "Deep learning methodology", desc: "The paper must use deep learning or neural network methods", weight: 0.4 },
+    ],
+    search_queries: ["\"solar nowcasting\" deep learning CNN", "solar irradiance short-term forecasting neural network"],
+    results: [
+      {
+        title: "Deep Learning for Solar Irradiance Nowcasting Using Satellite Imagery",
+        snippet: "We propose a CNN-LSTM architecture that processes GOES-16 satellite images to predict solar irradiance up to 4 hours ahead. Evaluated on the NSRDB dataset, our method achieves 15% lower RMSE than persistence models and 8% improvement over traditional NWP approaches.",
+        source: "Nature Energy, 2024",
+        classification: "perfect", score: 0.96,
+        assessments: [
+          { criterion: "Solar irradiance nowcasting", verdict: "support", icon: "✅", explanation: "Directly addresses solar irradiance nowcasting with 4-hour prediction horizon using satellite imagery" },
+          { criterion: "Deep learning methodology", verdict: "support", icon: "✅", explanation: "Proposes a CNN-LSTM hybrid architecture, a deep learning approach — see Section 3.2" },
+        ]
+      },
+      {
+        title: "Probabilistic Solar Forecasting with Deep Gaussian Processes",
+        snippet: "This work introduces a deep Gaussian process framework for probabilistic solar irradiance forecasting at sub-hourly resolution. The model captures spatial-temporal dependencies across weather stations and provides calibrated uncertainty estimates.",
+        source: "Applied Energy, 2024",
+        classification: "perfect", score: 0.93,
+        assessments: [
+          { criterion: "Solar irradiance nowcasting", verdict: "support", icon: "✅", explanation: "Focuses on sub-hourly solar irradiance forecasting — qualifies as nowcasting" },
+          { criterion: "Deep learning methodology", verdict: "support", icon: "✅", explanation: "Uses deep Gaussian processes, a deep learning technique" },
+        ]
+      },
+      {
+        title: "Perovskite Solar Cell Fabrication Using Machine Learning-Optimized Processes",
+        snippet: "We apply machine learning to optimize the annealing temperature and precursor ratios in perovskite solar cell manufacturing. Using Bayesian optimization with a neural network surrogate model, we achieve 23.1% power conversion efficiency.",
+        source: "Advanced Materials, 2024",
+        classification: "reject", score: 0.08,
+        assessments: [
+          { criterion: "Solar irradiance nowcasting", verdict: "reject", icon: "❌", explanation: "This paper is about solar CELL MANUFACTURING, not solar irradiance forecasting/nowcasting" },
+          { criterion: "Deep learning methodology", verdict: "somewhat_support", icon: "⚠️", explanation: "Uses a neural network surrogate model, but as an optimization tool for manufacturing, not for forecasting" },
+        ]
+      },
+      {
+        title: "Transformer-Based Weather Prediction at Global Scale",
+        snippet: "We present a vision transformer model trained on ERA5 reanalysis data for medium-range global weather forecasting. The model predicts temperature, wind, and precipitation at 0.25° resolution up to 10 days ahead, outperforming the ECMWF HRES operational model.",
+        source: "Science, 2024",
+        classification: "partial", score: 0.45,
+        assessments: [
+          { criterion: "Solar irradiance nowcasting", verdict: "somewhat_support", icon: "⚠️", explanation: "Addresses weather forecasting which is related, but focuses on general weather (temperature, wind, precipitation) rather than specifically solar irradiance or nowcasting" },
+          { criterion: "Deep learning methodology", verdict: "support", icon: "✅", explanation: "Uses vision transformer architecture — a deep learning method" },
+        ]
+      },
+      {
+        title: "A Review of Solar Energy Policies in Developing Nations",
+        snippet: "This review surveys government policies, subsidies, and regulatory frameworks promoting solar energy adoption across 45 developing countries. We analyze feed-in tariffs, net metering policies, and their impact on solar installation rates.",
+        source: "Renewable Energy Reviews, 2023",
+        classification: "reject", score: 0.02,
+        assessments: [
+          { criterion: "Solar irradiance nowcasting", verdict: "reject", icon: "❌", explanation: "A policy review paper — does not address solar irradiance forecasting or any technical methodology" },
+          { criterion: "Deep learning methodology", verdict: "reject", icon: "❌", explanation: "No machine learning or deep learning methods discussed" },
+        ]
+      },
+      {
+        title: "Cloud Motion Vectors for Intra-Hour Solar Forecasting with ConvNets",
+        snippet: "We extract cloud motion vectors from sky camera images and feed them into a convolutional neural network to predict minute-level solar irradiance fluctuations caused by cloud transients.",
+        source: "Solar Energy, 2024",
+        classification: "perfect", score: 0.97,
+        assessments: [
+          { criterion: "Solar irradiance nowcasting", verdict: "support", icon: "✅", explanation: "Directly addresses intra-hour solar irradiance forecasting (nowcasting) using sky camera imagery" },
+          { criterion: "Deep learning methodology", verdict: "support", icon: "✅", explanation: "Uses convolutional neural networks (ConvNets) — a deep learning method" },
+        ]
+      },
+      {
+        title: "Wind Power Forecasting Using Recurrent Neural Networks",
+        snippet: "This study applies LSTM networks to predict wind power generation at onshore wind farms. We demonstrate 12% improvement in day-ahead forecasting accuracy compared to traditional ARIMA models.",
+        source: "Energy Conversion and Management, 2024",
+        classification: "reject", score: 0.05,
+        assessments: [
+          { criterion: "Solar irradiance nowcasting", verdict: "reject", icon: "❌", explanation: "Addresses WIND power forecasting, not solar irradiance" },
+          { criterion: "Deep learning methodology", verdict: "support", icon: "✅", explanation: "Uses LSTM networks, a deep learning method — but applied to the wrong domain" },
+        ]
+      },
+    ]
+  },
+  {
+    query: "Federated learning for privacy-preserving medical imaging",
+    criteria: [
+      { id: "c1", name: "Federated learning approach", desc: "The paper must use federated learning as the primary training paradigm", weight: 0.5 },
+      { id: "c2", name: "Medical imaging application", desc: "The application domain must be medical image analysis (radiology, pathology, etc.)", weight: 0.3 },
+      { id: "c3", name: "Privacy preservation", desc: "The paper must address patient data privacy as a key concern", weight: 0.2 },
+    ],
+    search_queries: ["federated learning medical imaging privacy", "distributed training hospital radiology patient data"],
+    results: [
+      {
+        title: "Federated Learning for Brain Tumor Segmentation Across 12 Hospital Sites",
+        snippet: "We demonstrate federated averaging for brain tumor segmentation on multi-institutional MRI data without sharing patient scans. The federated model achieves Dice scores within 2% of centralized training while keeping all data on-site.",
+        source: "Nature Medicine, 2024",
+        classification: "perfect", score: 0.98,
+        assessments: [
+          { criterion: "Federated learning approach", verdict: "support", icon: "✅", explanation: "Uses federated averaging as the core training method across 12 hospital sites" },
+          { criterion: "Medical imaging application", verdict: "support", icon: "✅", explanation: "Brain tumor segmentation on MRI scans — a medical imaging task" },
+          { criterion: "Privacy preservation", verdict: "support", icon: "✅", explanation: "Explicitly keeps all patient data on-site; no raw data sharing between hospitals" },
+        ]
+      },
+      {
+        title: "Differential Privacy in Distributed Machine Learning: A Survey",
+        snippet: "We survey differential privacy mechanisms applied to distributed and federated learning systems. Topics include noise injection, gradient clipping, and privacy accounting across various application domains.",
+        source: "ACM Computing Surveys, 2024",
+        classification: "partial", score: 0.40,
+        assessments: [
+          { criterion: "Federated learning approach", verdict: "somewhat_support", icon: "⚠️", explanation: "Surveys federated learning among other distributed paradigms, but not the sole focus" },
+          { criterion: "Medical imaging application", verdict: "reject", icon: "❌", explanation: "A general survey — does not specifically focus on medical imaging" },
+          { criterion: "Privacy preservation", verdict: "support", icon: "✅", explanation: "Differential privacy is the core topic" },
+        ]
+      },
+      {
+        title: "Centralized Deep Learning for Chest X-Ray Diagnosis at Scale",
+        snippet: "We train a DenseNet-121 on 1.2 million chest X-rays from a single large hospital. The model achieves radiologist-level accuracy on 14 pathologies including pneumonia, cardiomegaly, and pleural effusion.",
+        source: "The Lancet Digital Health, 2024",
+        classification: "reject", score: 0.10,
+        assessments: [
+          { criterion: "Federated learning approach", verdict: "reject", icon: "❌", explanation: "Uses CENTRALIZED training from a single hospital — not federated learning" },
+          { criterion: "Medical imaging application", verdict: "support", icon: "✅", explanation: "Chest X-ray diagnosis is a medical imaging application" },
+          { criterion: "Privacy preservation", verdict: "reject", icon: "❌", explanation: "All data aggregated in one place — no privacy-preserving mechanisms discussed" },
+        ]
+      },
+      {
+        title: "Privacy-Preserving Federated Pathology: Detecting Cancer Without Sharing Slides",
+        snippet: "We propose a secure aggregation protocol for federated training of histopathology image classifiers. Using homomorphic encryption and federated SGD, the model detects breast cancer metastases with AUC 0.97 while provably preventing data reconstruction.",
+        source: "MICCAI 2024",
+        classification: "perfect", score: 0.99,
+        assessments: [
+          { criterion: "Federated learning approach", verdict: "support", icon: "✅", explanation: "Federated SGD with secure aggregation — a federated learning approach" },
+          { criterion: "Medical imaging application", verdict: "support", icon: "✅", explanation: "Histopathology image classification for cancer detection" },
+          { criterion: "Privacy preservation", verdict: "support", icon: "✅", explanation: "Uses homomorphic encryption with provable privacy guarantees against data reconstruction" },
+        ]
+      },
+      {
+        title: "Federated Recommendation Systems for E-Commerce",
+        snippet: "We apply federated collaborative filtering to build privacy-preserving product recommendation systems. User interaction data remains on-device while model updates are aggregated on the server.",
+        source: "KDD 2024",
+        classification: "reject", score: 0.06,
+        assessments: [
+          { criterion: "Federated learning approach", verdict: "support", icon: "✅", explanation: "Uses federated collaborative filtering" },
+          { criterion: "Medical imaging application", verdict: "reject", icon: "❌", explanation: "E-commerce recommendation — not medical imaging" },
+          { criterion: "Privacy preservation", verdict: "support", icon: "✅", explanation: "User data stays on-device" },
+        ]
+      },
+      {
+        title: "Transfer Learning in Radiology: A Comprehensive Review",
+        snippet: "This review covers transfer learning techniques applied to radiology tasks including CT, MRI, and ultrasound image analysis. We compare fine-tuning strategies, domain adaptation methods, and multi-task learning approaches.",
+        source: "Radiology: AI, 2024",
+        classification: "reject", score: 0.12,
+        assessments: [
+          { criterion: "Federated learning approach", verdict: "reject", icon: "❌", explanation: "Focuses on TRANSFER learning, not federated learning — different paradigms" },
+          { criterion: "Medical imaging application", verdict: "support", icon: "✅", explanation: "Radiology image analysis (CT, MRI, ultrasound)" },
+          { criterion: "Privacy preservation", verdict: "reject", icon: "❌", explanation: "Privacy is not addressed in the paper" },
+        ]
+      },
+    ]
+  },
+  {
+    query: "Reinforcement learning for robotic manipulation",
+    criteria: [
+      { id: "c1", name: "Reinforcement learning method", desc: "The paper must use reinforcement learning (policy gradient, Q-learning, actor-critic, etc.) as the core method", weight: 0.5 },
+      { id: "c2", name: "Robotic manipulation task", desc: "The task must involve robotic arm/hand manipulation (grasping, pick-and-place, assembly, etc.)", weight: 0.5 },
+    ],
+    search_queries: ["reinforcement learning robotic manipulation grasping", "sim-to-real policy transfer dexterous manipulation"],
+    results: [
+      {
+        title: "Sim-to-Real Dexterous Manipulation with Progressive Domain Randomization",
+        snippet: "We present a PPO-based reinforcement learning framework for dexterous robotic hand manipulation. Using progressive domain randomization in simulation, the learned policy transfers to a real Shadow Hand with 78% success rate on pick-and-place tasks.",
+        source: "CoRL 2024",
+        classification: "perfect", score: 0.97,
+        assessments: [
+          { criterion: "Reinforcement learning method", verdict: "support", icon: "✅", explanation: "Uses PPO (Proximal Policy Optimization), a reinforcement learning algorithm" },
+          { criterion: "Robotic manipulation task", verdict: "support", icon: "✅", explanation: "Dexterous hand manipulation with pick-and-place tasks on a real Shadow Hand robot" },
+        ]
+      },
+      {
+        title: "Vision-Language Models for Robot Navigation in Indoor Environments",
+        snippet: "We combine a pre-trained VLM with DQN to enable mobile robots to navigate complex indoor environments using natural language instructions. The agent learns to reach target locations described by human commands.",
+        source: "ICRA 2024",
+        classification: "reject", score: 0.15,
+        assessments: [
+          { criterion: "Reinforcement learning method", verdict: "support", icon: "✅", explanation: "Uses DQN, a reinforcement learning algorithm" },
+          { criterion: "Robotic manipulation task", verdict: "reject", icon: "❌", explanation: "This is about robot NAVIGATION, not manipulation — the robot moves through space but does not grasp or manipulate objects" },
+        ]
+      },
+      {
+        title: "Residual RL for Contact-Rich Assembly with a 7-DOF Arm",
+        snippet: "We propose residual reinforcement learning on top of a motion-planned trajectory for peg-in-hole and gear assembly tasks. The RL residual policy handles contact dynamics that are difficult to model, achieving 95% assembly success rates.",
+        source: "RSS 2024",
+        classification: "perfect", score: 0.95,
+        assessments: [
+          { criterion: "Reinforcement learning method", verdict: "support", icon: "✅", explanation: "Uses residual RL — reinforcement learning layered on top of motion planning" },
+          { criterion: "Robotic manipulation task", verdict: "support", icon: "✅", explanation: "Peg-in-hole and gear assembly are contact-rich manipulation tasks on a 7-DOF arm" },
+        ]
+      },
+      {
+        title: "Soft Robotic Gripper Design with Finite Element Analysis",
+        snippet: "We design a novel soft robotic gripper using topology optimization and FEA simulation. The silicone-based gripper conforms to irregular object shapes and provides a 40% improvement in grasp stability compared to rigid-finger designs.",
+        source: "Soft Robotics, 2024",
+        classification: "reject", score: 0.04,
+        assessments: [
+          { criterion: "Reinforcement learning method", verdict: "reject", icon: "❌", explanation: "Uses finite element analysis (FEA) and topology optimization — no reinforcement learning" },
+          { criterion: "Robotic manipulation task", verdict: "somewhat_support", icon: "⚠️", explanation: "Designs a gripper for grasping, which relates to manipulation, but no learning-based control is involved" },
+        ]
+      },
+      {
+        title: "Multi-Agent RL for Bimanual Robot Cooperative Assembly",
+        snippet: "Two robot arms learn cooperative assembly through multi-agent reinforcement learning with shared reward shaping. The dual-arm system assembles IKEA furniture components with human-level proficiency after 500K simulation steps.",
+        source: "NeurIPS 2024",
+        classification: "perfect", score: 0.98,
+        assessments: [
+          { criterion: "Reinforcement learning method", verdict: "support", icon: "✅", explanation: "Multi-agent reinforcement learning with shared reward shaping" },
+          { criterion: "Robotic manipulation task", verdict: "support", icon: "✅", explanation: "Bimanual cooperative assembly of furniture components — a manipulation task" },
+        ]
+      },
+      {
+        title: "Imitation Learning for Robotic Suturing in Surgical Robotics",
+        snippet: "We use learning from demonstrations (LfD) to train a da Vinci surgical robot to perform autonomous suturing. Expert surgeon demonstrations are encoded as movement primitives and reproduced by the robot with sub-millimeter accuracy.",
+        source: "IEEE T-RO, 2024",
+        classification: "partial", score: 0.38,
+        assessments: [
+          { criterion: "Reinforcement learning method", verdict: "reject", icon: "❌", explanation: "Uses IMITATION learning (learning from demonstrations), not reinforcement learning — no reward signal or exploration" },
+          { criterion: "Robotic manipulation task", verdict: "support", icon: "✅", explanation: "Surgical suturing is a fine manipulation task" },
+        ]
+      },
+    ]
+  }
+];
+
+/* ════════════════════════════════════════════════════════════════════
+   UI Logic
+   ════════════════════════════════════════════════════════════════════ */
+let selectedIdx = 0;
+let running = false;
+
+function initPills() {
+  const container = document.getElementById('queryPills');
+  DEMOS.forEach((d, i) => {
+    const pill = document.createElement('div');
+    pill.className = 'query-pill' + (i === 0 ? ' active' : '');
+    pill.textContent = d.query;
+    pill.onclick = () => {
+      if (running) return;
+      selectedIdx = i;
+      document.querySelectorAll('.query-pill').forEach((p, j) => p.classList.toggle('active', j === i));
+    };
+    container.appendChild(pill);
+  });
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function setStep(id, state) {
+  const el = document.getElementById(id);
+  el.classList.remove('active', 'done', 'animating');
+  if (state === 'active') { el.classList.add('active', 'animating'); }
+  else if (state === 'done') { el.classList.add('done'); }
+}
+
+function resetPipeline() {
+  ['step-plan','step-search','step-verify','step-classify'].forEach(id => setStep(id, ''));
+}
+
+function createResultCard(r, side, delay) {
+  const card = document.createElement('div');
+  let cls = 'result-card';
+  if (side === 'right' && r.classification) cls += ' ' + r.classification;
+  card.className = cls;
+
+  let html = `<div class="title">${r.title}</div>`;
+  html += `<div class="snippet">${r.snippet}</div>`;
+  html += `<div class="meta"><span>${r.source}</span>`;
+
+  if (side === 'right' && r.classification) {
+    const labelMap = { perfect: 'Perfect', partial: 'Partial', reject: 'Rejected' };
+    const badgeCls = 'badge-' + r.classification;
+    html += `<span class="badge ${badgeCls}">${labelMap[r.classification]}</span>`;
+    html += `<span class="badge badge-score">${r.score.toFixed(2)}</span>`;
+  }
+  html += `</div>`;
+
+  if (side === 'right' && r.assessments) {
+    const uid = 'assess-' + Math.random().toString(36).slice(2,8);
+    html += `<div class="assess-toggle" onclick="document.getElementById('${uid}').classList.toggle('open');this.textContent=this.textContent==='▶ Show AI assessment'?'▼ Hide AI assessment':'▶ Show AI assessment'">▶ Show AI assessment</div>`;
+    html += `<div class="assess-detail" id="${uid}">`;
+    r.assessments.forEach(a => {
+      html += `<div class="assess-row">
+        <span class="assess-icon">${a.icon}</span>
+        <div class="assess-text">
+          <span class="crit-name">${a.criterion}</span>: ${a.verdict}
+          <span class="explanation">"${a.explanation}"</span>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  card.innerHTML = html;
+  setTimeout(() => card.classList.add('visible'), delay);
+  return card;
+}
+
+async function runDemo() {
+  if (running) return;
+  running = true;
+  const btn = document.getElementById('searchBtn');
+  btn.disabled = true;
+  btn.textContent = 'Running...';
+
+  const demo = DEMOS[selectedIdx];
+  const leftPanel = document.getElementById('leftPanel');
+  const rightPanel = document.getElementById('rightPanel');
+  const pipeline = document.getElementById('pipeline');
+
+  leftPanel.innerHTML = '';
+  rightPanel.innerHTML = '';
+  resetPipeline();
+  pipeline.style.display = 'flex';
+
+  const sorted = [...demo.results].sort((a, b) => b.score - a.score);
+  const perfects = sorted.filter(r => r.classification === 'perfect');
+  const partials = sorted.filter(r => r.classification === 'partial');
+  const rejects  = sorted.filter(r => r.classification === 'reject');
+
+  // Step 1: Planning
+  setStep('step-plan', 'active');
+  await sleep(1200);
+  setStep('step-plan', 'done');
+
+  // Show criteria on right
+  let criteriaHtml = '<div class="criteria-box"><h4>🧠 AI-Generated Screening Criteria</h4>';
+  demo.criteria.forEach(c => {
+    criteriaHtml += `<div class="criteria-item"><span class="cname">${c.name}</span> (weight: ${c.weight}) — ${c.desc}</div>`;
+  });
+  criteriaHtml += `<div style="margin-top:0.5rem;font-size:0.75rem;color:var(--text-dim);">Search queries: ${demo.search_queries.map(q => `"${q}"`).join(', ')}</div>`;
+  criteriaHtml += '</div>';
+  rightPanel.innerHTML = criteriaHtml;
+
+  // Step 2: Searching
+  setStep('step-search', 'active');
+  await sleep(1000);
+  setStep('step-search', 'done');
+
+  // Show left panel: all results in original order (no classification)
+  const leftSummary = document.createElement('div');
+  leftSummary.className = 'summary-bar summary-old';
+  leftSummary.innerHTML = `🔍 Returned <span class="num">${demo.results.length}</span> results — you need to read each one to judge relevance`;
+  leftPanel.appendChild(leftSummary);
+
+  demo.results.forEach((r, i) => {
+    leftPanel.appendChild(createResultCard(r, 'left', 80 * i));
+  });
+
+  // Step 3: Verifying
+  setStep('step-verify', 'active');
+  await sleep(2500);
+  setStep('step-verify', 'done');
+
+  // Step 4: Classifying
+  setStep('step-classify', 'active');
+  await sleep(600);
+  setStep('step-classify', 'done');
+
+  // Show right panel: classified results
+  const rightSummary = document.createElement('div');
+  rightSummary.className = 'summary-bar summary-new';
+  const savedPct = Math.round((rejects.length / demo.results.length) * 100);
+  rightSummary.innerHTML = `🤖 <span class="num">${demo.results.length}</span> results → <span class="num">${perfects.length}</span> perfect · <span class="num">${partials.length}</span> partial · <span class="num">${rejects.length}</span> filtered — <span class="save">saves ${savedPct}% reading time</span>`;
+  rightPanel.appendChild(rightSummary);
+
+  let delay = 0;
+  if (perfects.length) {
+    const label = document.createElement('div');
+    label.className = 'section-label perfect-label';
+    label.textContent = `✅ Perfect Match (${perfects.length})`;
+    rightPanel.appendChild(label);
+    perfects.forEach(r => { rightPanel.appendChild(createResultCard(r, 'right', delay)); delay += 120; });
+  }
+  if (partials.length) {
+    const label = document.createElement('div');
+    label.className = 'section-label partial-label';
+    label.textContent = `⚠️ Partial Match (${partials.length})`;
+    rightPanel.appendChild(label);
+    partials.forEach(r => { rightPanel.appendChild(createResultCard(r, 'right', delay)); delay += 120; });
+  }
+  if (rejects.length) {
+    const label = document.createElement('div');
+    label.className = 'section-label reject-label';
+    label.textContent = `❌ Rejected (${rejects.length})`;
+    rightPanel.appendChild(label);
+    rejects.forEach(r => { rightPanel.appendChild(createResultCard(r, 'right', delay)); delay += 120; });
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Run Comparison';
+  running = false;
+}
+
+initPills();
+</script>
+</body>
+</html>

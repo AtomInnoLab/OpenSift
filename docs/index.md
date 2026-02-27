@@ -4,7 +4,7 @@ hide:
 ---
 
 <p align="center">
-  <img src="assets/logo.png" alt="OpenSift" width="600" />
+  <img src="opensift-banner.png" alt="OpenSift" width="600" />
 </p>
 
 <p align="center">
@@ -12,14 +12,14 @@ hide:
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11%2B-blue.svg" alt="Python 3.11+"></a>
   <a href="https://github.com/AtomInnoLab/OpenSift"><img src="https://img.shields.io/badge/version-0.1.0-green.svg" alt="Version"></a>
   <a href="https://arxiv.org/abs/2512.06879"><img src="https://img.shields.io/badge/arXiv-2512.06879-b31b1b.svg" alt="arXiv"></a>
-  <a href="https://wispaper.ai"><img src="https://img.shields.io/badge/Origin-WisPaper-8A2BE2.svg" alt="WisPaper"></a>
+  <a href="https://wispaper.ai?utm_source=opensift"><img src="https://img.shields.io/badge/Origin-WisPaper-8A2BE2.svg" alt="WisPaper"></a>
 </p>
 
 # OpenSift
 
 **Open-source AI augmentation layer that adds intelligent query planning and result verification to any search backend.**
 
-OpenSift is born from [WisPaper](https://wispaper.ai), an AI-powered academic search platform developed by Fudan NLP Lab. The core search-verification paradigm — AI query planning + LLM-based result verification — is described in the research paper [*WisPaper: Your AI Scholar Search Engine*](https://arxiv.org/abs/2512.06879).
+OpenSift is born from [WisPaper](https://wispaper.ai?utm_source=opensift), an AI-powered academic search platform developed by Fudan NLP Lab. The core search-verification paradigm — AI query planning + LLM-based result verification — is described in the research paper [*WisPaper: Your AI Scholar Search Engine*](https://arxiv.org/abs/2512.06879).
 
 ---
 
@@ -47,16 +47,9 @@ OpenSift is **not** a search engine or a Q&A system. It is a lightweight AI midd
 
 Traditional search systems return **keyword-matched** results, leaving users to manually read and filter them. OpenSift automatically performs AI-powered filtering after results are returned:
 
-```mermaid
-graph LR
-    A[User Query] --> B[Query Planner]
-    B --> C[Search Adapters]
-    C --> D[Evidence Verifier]
-    D --> E[Result Classifier]
-    E --> F1[✅ Perfect]
-    E --> F2[⚠️ Partial]
-    E --> F3[❌ Rejected]
-```
+<p align="center">
+  <img src="architecture.jpg" alt="OpenSift Architecture" width="700" />
+</p>
 
 | Classification | Meaning |
 |:-:|:--|
@@ -77,6 +70,10 @@ OpenSift works with any search engine through its adapter pattern:
 | **MeiliSearch** | MeiliSearch | Instant, typo-tolerant search |
 | **Wikipedia** | Wikipedia (all languages) | Multi-language encyclopedia search |
 
+See the difference OpenSift makes with our interactive before-vs-after demo:
+
+[:material-play-circle: **Interactive Demo** — See search verification in action](demo.md){ .md-button .md-button--primary }
+
 ## Quick Links
 
 <div class="grid cards" markdown>
@@ -89,3 +86,5 @@ OpenSift works with any search engine through its adapter pattern:
 - :material-github: [**GitHub**](https://github.com/AtomInnoLab/OpenSift) — Source code & issues
 
 </div>
+
+## Try It Now
