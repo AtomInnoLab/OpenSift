@@ -15,7 +15,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from opensift.core.llm.client import LLMClient, LLMError
 from opensift.core.llm.prompts import (
@@ -118,14 +118,14 @@ class EvidenceVerifier:
                 return await self.verify(item, criteria, query, question_lang)
 
         start_time = time.monotonic()
-        results = await asyncio.gather(
+        raw_results: list[ValidationResult | BaseException] = await asyncio.gather(
             *[_limited_verify(item) for item in items],
             return_exceptions=True,
         )
 
         validated: list[ValidationResult] = []
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
+        for i, result in enumerate(raw_results):
+            if isinstance(result, BaseException):
                 logger.warning("Validation failed for result %d: %s", i, result)
                 validated.append(self._fallback_validation(criteria))
             else:
@@ -155,12 +155,12 @@ class EvidenceVerifier:
         Accepts a ``PaperInfo`` (or any object with ``to_result_item()``)
         and delegates to :meth:`verify`.
         """
-        item: ResultItem = paper.to_result_item()  # type: ignore[union-attr]
+        item: ResultItem = paper.to_result_item()  # type: ignore[attr-defined]
         return await self.verify(item, criteria, query, question_lang)
 
     async def verify_papers(
         self,
-        papers: list,
+        papers: list[Any],
         criteria: list[Criterion],
         query: str,
         question_lang: str = "English",
@@ -172,7 +172,7 @@ class EvidenceVerifier:
         Accepts a list of ``PaperInfo`` (or any objects with ``to_result_item()``)
         and delegates to :meth:`verify_batch`.
         """
-        items: list[ResultItem] = [p.to_result_item() for p in papers]  # type: ignore[union-attr]
+        items: list[ResultItem] = [p.to_result_item() for p in papers]
         return await self.verify_batch(items, criteria, query, question_lang, max_concurrent=max_concurrent)
 
     # ── Internal ──
@@ -287,7 +287,7 @@ class EvidenceVerifier:
         )
         return VALIDATION_SYSTEM_PROMPT, user_prompt
 
-    def _parse_validation_response(self, raw: dict, criteria: list[Criterion]) -> ValidationResult:
+    def _parse_validation_response(self, raw: dict[str, Any], criteria: list[Criterion]) -> ValidationResult:
         """Parse LLM validation response into a ValidationResult.
 
         Args:

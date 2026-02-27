@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -103,7 +104,7 @@ async def search(
         ) from e
 
 
-async def _sse_generator(engine: OpenSiftEngine, request: SearchRequest):
+async def _sse_generator(engine: OpenSiftEngine, request: SearchRequest) -> AsyncIterator[str]:
     """Async generator that yields SSE-formatted lines.
 
     Each event follows the SSE protocol::

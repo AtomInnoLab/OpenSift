@@ -20,7 +20,7 @@ import logging
 import time
 import uuid
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from opensift.adapters.base.registry import AdapterRegistry
 from opensift.core.classifier import ResultClassifier
@@ -444,13 +444,12 @@ class OpenSiftEngine:
             for query in request.queries
         ]
 
-        responses = await asyncio.gather(*tasks, return_exceptions=True)
+        raw_responses: list[SearchResponse | BaseException] = await asyncio.gather(*tasks, return_exceptions=True)
 
         results: list[SearchResponse] = []
-        for i, resp in enumerate(responses):
-            if isinstance(resp, Exception):
+        for i, resp in enumerate(raw_responses):
+            if isinstance(resp, BaseException):
                 logger.warning("Batch query %d failed: %s", i, resp)
-                # Create an error response stub
                 results.append(
                     SearchResponse(
                         request_id=f"req_batch_{i}_error",
@@ -584,25 +583,29 @@ class OpenSiftEngine:
             logger.warning("No search adapter available, returning empty results")
             return []
 
-        tasks: list[asyncio.Task] = []
+        tasks: list[asyncio.Task[Any]] = []
         task_meta: list[tuple[str, bool]] = []  # (adapter_name, use_paper_path)
 
         for adapter in adapters:
             use_paper_path = hasattr(adapter, "search_papers") and callable(adapter.search_papers)
             for query in search_queries:
                 if use_paper_path:
-                    tasks.append(adapter.search_papers(query, request.options))  # type: ignore[union-attr]
+                    tasks.append(
+                        asyncio.ensure_future(
+                            adapter.search_papers(query, request.options)  # type: ignore[attr-defined]
+                        )
+                    )
                 else:
-                    tasks.append(adapter.search_and_normalize(query, request.options))
+                    tasks.append(asyncio.ensure_future(adapter.search_and_normalize(query, request.options)))
                 task_meta.append((adapter.name, use_paper_path))
 
-        raw_results = await asyncio.gather(*tasks, return_exceptions=True)
+        raw_results: list[Any] = await asyncio.gather(*tasks, return_exceptions=True)
 
         seen_titles: set[str] = set()
         items: list[ResultItem] = []
 
         for i, result in enumerate(raw_results):
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 adapter_name, _ = task_meta[i]
                 logger.warning("Search query failed on adapter '%s': %s", adapter_name, result)
                 continue

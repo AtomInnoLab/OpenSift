@@ -30,7 +30,7 @@ class RawVerifiedResult(BaseModel):
     included but no perfect/partial/reject label or weighted score is applied.
     """
 
-    result: dict = Field(description="Original result item (ResultItem dict)")
+    result: dict[str, Any] = Field(description="Original result item (ResultItem dict)")
     validation: ValidationResult = Field(description="LLM validation result")
 
 

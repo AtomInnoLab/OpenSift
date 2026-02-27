@@ -33,8 +33,8 @@ run-prod: ## Run the production server
 
 # ─── Quality ─────────────────────────────────────────────
 
-test: ## Run all tests
-	poetry run pytest tests/ -v
+test: ## Run all tests (excludes adapter integration tests that require Docker)
+	poetry run pytest tests/ -v -m "not (elasticsearch or opensearch or solr or meilisearch)"
 
 test-unit: ## Run unit tests only
 	poetry run pytest tests/unit/ -v -m "not integration"

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from opensift.core.llm.client import LLMClient, LLMError
 from opensift.core.llm.prompts import CRITERIA_SYSTEM_PROMPT, CRITERIA_USER_PROMPT
@@ -122,7 +122,7 @@ class QueryPlanner:
 
         return self._parse_criteria_response(raw)
 
-    def _parse_criteria_response(self, raw: dict) -> CriteriaResult:
+    def _parse_criteria_response(self, raw: dict[str, Any]) -> CriteriaResult:
         """Parse and validate the raw LLM response into a CriteriaResult.
 
         Args:

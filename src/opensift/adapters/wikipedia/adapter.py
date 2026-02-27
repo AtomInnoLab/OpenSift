@@ -78,7 +78,7 @@ class WikipediaAdapter(SearchAdapter):
             ConfigurationError: If the ``wikipedia-api`` package is not installed.
         """
         try:
-            import wikipediaapi
+            import wikipediaapi  # type: ignore[import-untyped]
         except ImportError as e:
             raise ConfigurationError(
                 "The 'wikipedia-api' package is required for the Wikipedia adapter. "

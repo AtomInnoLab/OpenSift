@@ -18,6 +18,7 @@ import logging
 
 from opensift.models.assessment import (
     AssessmentType,
+    CriterionAssessment,
     ResultClassification,
     ScoredResult,
     ValidationResult,
@@ -105,7 +106,7 @@ class ResultClassifier:
         return results
 
     @staticmethod
-    def _classify_single(assessments: list) -> ResultClassification:
+    def _classify_single(assessments: list[CriterionAssessment]) -> ResultClassification:
         """Classification for a single-criterion scenario.
 
         support → perfect
@@ -125,7 +126,9 @@ class ResultClassifier:
             return ResultClassification.REJECT
 
     @staticmethod
-    def _classify_multiple(assessments: list, criteria_map: dict) -> ResultClassification:
+    def _classify_multiple(
+        assessments: list[CriterionAssessment], criteria_map: dict[str, Criterion]
+    ) -> ResultClassification:
         """Classification for multi-criteria scenario.
 
         ALL support → perfect
@@ -151,7 +154,7 @@ class ResultClassifier:
         return ResultClassification.REJECT
 
     @staticmethod
-    def _calculate_weighted_score(assessments: list, criteria_map: dict) -> float:
+    def _calculate_weighted_score(assessments: list[CriterionAssessment], criteria_map: dict[str, Criterion]) -> float:
         """Calculate weighted score based on assessments and criteria weights.
 
         Score mapping:

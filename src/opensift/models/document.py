@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 class DocumentMetadata(BaseModel):
     """Metadata associated with a document."""
 
-    source: str = Field(description="Source identifier (e.g., index name, collection)")
+    source: str = Field(default="", description="Source identifier (e.g., index name, collection)")
     url: str | None = Field(default=None, description="Original document URL")
     published_date: datetime | None = Field(default=None, description="Document publication date")
     author: str | None = Field(default=None, description="Document author")

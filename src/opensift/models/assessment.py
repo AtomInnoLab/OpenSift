@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -61,7 +62,7 @@ class ScoredResult(BaseModel):
     This is the output of the full filtering funnel for one result item.
     """
 
-    result: dict = Field(description="Original result item (ResultItem dict)")
+    result: dict[str, Any] = Field(description="Original result item (ResultItem dict)")
     validation: ValidationResult = Field(description="LLM validation result")
     classification: ResultClassification = Field(description="Final classification")
     weighted_score: float = Field(

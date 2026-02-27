@@ -74,12 +74,12 @@ class AdapterConfig(BaseModel):
             try:
                 parsed = json.loads(v)
                 if isinstance(parsed, list):
-                    return parsed
+                    return [str(h) for h in parsed]
             except (json.JSONDecodeError, TypeError):
                 pass
             # Single host as plain string
             return [v] if v else []
-        return v
+        return list(v)
 
 
 class SearchSettings(BaseModel):
@@ -141,7 +141,7 @@ class Settings(BaseSettings):
         Returns:
             Populated Settings instance.
         """
-        import yaml
+        import yaml  # type: ignore[import-untyped]
 
         config_path = Path(path)
         if not config_path.exists():

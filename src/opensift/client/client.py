@@ -16,10 +16,12 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from collections.abc import AsyncIterator, Iterator
-from typing import Any
+from collections.abc import AsyncIterator, Coroutine, Iterator
+from typing import Any, TypeVar, cast
 
 import httpx
+
+_T = TypeVar("_T")
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +97,7 @@ class AsyncOpenSiftClient:
         """
         resp = await self._client.get("/v1/health")
         resp.raise_for_status()
-        return resp.json()
+        return cast(dict[str, Any], resp.json())
 
     async def adapter_health(self) -> dict[str, Any]:
         """Check adapter health.
@@ -105,7 +107,7 @@ class AsyncOpenSiftClient:
         """
         resp = await self._client.get("/v1/health/adapters")
         resp.raise_for_status()
-        return resp.json()
+        return cast(dict[str, Any], resp.json())
 
     # ── Plan (standalone) ──
 
@@ -136,7 +138,7 @@ class AsyncOpenSiftClient:
         }
         resp = await self._client.post("/v1/plan", json=payload)
         resp.raise_for_status()
-        return resp.json()
+        return cast(dict[str, Any], resp.json())
 
     # ── Search (complete mode) ──
 
@@ -180,7 +182,7 @@ class AsyncOpenSiftClient:
         }
         resp = await self._client.post("/v1/search", json=payload)
         resp.raise_for_status()
-        return resp.json()
+        return cast(dict[str, Any], resp.json())
 
     # ── Search (streaming mode) ──
 
@@ -270,7 +272,7 @@ class AsyncOpenSiftClient:
 
         resp = await self._client.post("/v1/search/batch", json=payload)
         resp.raise_for_status()
-        return resp.json()
+        return cast(dict[str, Any], resp.json())
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -306,7 +308,7 @@ class OpenSiftClient:
         self._timeout = timeout
         self._httpx_kwargs = httpx_kwargs
 
-    def _run(self, coro):
+    def _run(self, coro: Coroutine[Any, Any, _T]) -> _T:
         """Run an async coroutine synchronously."""
         try:
             loop = asyncio.get_running_loop()

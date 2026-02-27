@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
@@ -22,7 +22,7 @@ def setup_logging(settings: ObservabilitySettings | None = None) -> None:
     log_format = getattr(settings, "log_format", "json") if settings else "json"
 
     # Configure structlog
-    processors: list = [
+    processors: list[Any] = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.filter_by_level,
         structlog.stdlib.add_logger_name,

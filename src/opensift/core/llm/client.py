@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from openai import AsyncOpenAI
 
@@ -199,7 +199,7 @@ class LLMClient:
                 content = self._strip_code_fences(content)
 
                 try:
-                    return json.loads(content)
+                    return cast(dict[str, Any], json.loads(content))
                 except json.JSONDecodeError:
                     repaired = self._repair_json(content)
                     if repaired is not None:
@@ -369,7 +369,7 @@ class LLMClient:
 
         # Try parsing after basic fixes
         try:
-            return json.loads(text)
+            return cast(dict[str, Any], json.loads(text))
         except json.JSONDecodeError:
             pass
 
@@ -381,7 +381,7 @@ class LLMClient:
         text = re.sub(r"(})\s*(\")", r"\1,\2", text)
 
         try:
-            return json.loads(text)
+            return cast(dict[str, Any], json.loads(text))
         except json.JSONDecodeError:
             pass
 
@@ -410,7 +410,7 @@ class LLMClient:
         text = _escape_newlines_in_strings(text)
 
         try:
-            return json.loads(text)
+            return cast(dict[str, Any], json.loads(text))
         except json.JSONDecodeError:
             return None
 

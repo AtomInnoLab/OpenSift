@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -171,7 +171,7 @@ class MeiliSearchAdapter(SearchAdapter):
             if resp.status_code == 404:
                 raise DocumentNotFoundError(f"Document '{doc_id}' not found.")
             resp.raise_for_status()
-            return resp.json()
+            return cast(dict[str, Any], resp.json())
         except DocumentNotFoundError:
             raise
         except httpx.HTTPError as e:
